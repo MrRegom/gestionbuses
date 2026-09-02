@@ -4,7 +4,8 @@ from flota.serializers import BusSerializer
 from operaciones.serializers import PersonaSerializer
 
 from .models import (
-    CategoriaChecklist, ItemChecklist, Checklist, RespuestaChecklist, Incidente,
+    CategoriaChecklist, ItemChecklist, Checklist, RespuestaChecklist,
+    Incidente, OrdenTrabajo,
 )
 
 
@@ -86,4 +87,24 @@ class IncidenteSerializer(serializers.ModelSerializer):
             'reportado_por', 'descripcion', 'gravedad', 'estado', 'origen',
             'checklist', 'item', 'item_descripcion',
             'creado_en', 'actualizado_en',
+        ]
+
+
+class OrdenTrabajoSerializer(serializers.ModelSerializer):
+    bus = BusSerializer(read_only=True)
+    mecanico = PersonaSerializer(read_only=True)
+    incidente_codigo = serializers.CharField(
+        source='incidente.codigo', read_only=True, default=None
+    )
+    especialidad_label = serializers.CharField(
+        source='get_especialidad_display', read_only=True
+    )
+
+    class Meta:
+        model = OrdenTrabajo
+        fields = [
+            'id', 'codigo', 'incidente', 'incidente_codigo', 'bus',
+            'descripcion', 'especialidad', 'especialidad_label',
+            'tipo', 'prioridad', 'estado', 'mecanico', 'pozo',
+            'diagnostico', 'creado_en', 'iniciado_en', 'completado_en',
         ]

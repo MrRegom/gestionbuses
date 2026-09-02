@@ -4,6 +4,9 @@ class Persona(models.Model):
     class Rol(models.TextChoices):
         CONDUCTOR = 'CONDUCTOR', 'Conductor'
         ASISTENTE = 'ASISTENTE', 'Asistente'
+        # El personal de taller también es Persona: comparte RUT y nombre,
+        # y así una orden de trabajo puede apuntar a quien la ejecuta.
+        MECANICO = 'MECANICO', 'Mecánico'
 
     class Tipo(models.TextChoices):
         TITULAR = 'TITULAR', 'Titular'

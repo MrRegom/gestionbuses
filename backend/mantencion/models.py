@@ -142,7 +142,10 @@ class Incidente(models.Model):
         CHECKLIST = 'CHECKLIST', 'Checklist'
         RUTA = 'RUTA', 'Reportado en ruta'
 
-    codigo = models.CharField(max_length=20, unique=True)
+    # Se rellena justo después del INSERT, a partir del id ya asignado.
+    # Calcularlo antes (max(id)+1) crea una carrera: dos peticiones
+    # simultáneas leen el mismo máximo y chocan contra el unique.
+    codigo = models.CharField(max_length=20, unique=True, null=True, blank=True)
     bus = models.ForeignKey(
         'flota.Bus', on_delete=models.PROTECT, related_name='incidentes'
     )
@@ -181,3 +184,83 @@ class Incidente(models.Model):
 
     def __str__(self):
         return f'{self.codigo} · {self.bus.numero}'
+
+
+# ══════════════════════════════════════════════════════════════
+#  ORDEN DE TRABAJO
+#  El jefe de mecánicos convierte un incidente en una orden y la
+#  asigna según especialidad (README §2.4). También sirve para el
+#  mantenimiento preventivo, que no nace de ningún incidente.
+# ══════════════════════════════════════════════════════════════
+class OrdenTrabajo(models.Model):
+    class Estado(models.TextChoices):
+        SIN_ASIGNAR = 'SIN_ASIGNAR', 'Sin asignar'
+        PENDIENTE = 'PENDIENTE', 'Pendiente'
+        EN_PROCESO = 'EN_PROCESO', 'En proceso'
+        COMPLETADO = 'COMPLETADO', 'Completado'
+
+    class Tipo(models.TextChoices):
+        CORRECTIVO = 'CORRECTIVO', 'Correctivo'
+        PREVENTIVO = 'PREVENTIVO', 'Preventivo'
+
+    class Prioridad(models.TextChoices):
+        ALTA = 'ALTA', 'Alta'
+        MEDIA = 'MEDIA', 'Media'
+        BAJA = 'BAJA', 'Baja'
+
+    class Especialidad(models.TextChoices):
+        MOTOR = 'MOTOR', 'Motor'
+        FRENOS = 'FRENOS', 'Frenos'
+        SUSPENSION = 'SUSPENSION', 'Suspensión'
+        ELECTRICO = 'ELECTRICO', 'Eléctrico'
+        CARROCERIA = 'CARROCERIA', 'Carrocería'
+        GENERAL = 'GENERAL', 'General'
+
+    # Se rellena justo después del INSERT, a partir del id ya asignado.
+    # Calcularlo antes (max(id)+1) crea una carrera: dos peticiones
+    # simultáneas leen el mismo máximo y chocan contra el unique.
+    codigo = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    # Nulo en los preventivos: no todo trabajo nace de una falla.
+    incidente = models.ForeignKey(
+        Incidente, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ordenes',
+    )
+    bus = models.ForeignKey(
+        'flota.Bus', on_delete=models.PROTECT, related_name='ordenes'
+    )
+    descripcion = models.TextField()
+    especialidad = models.CharField(
+        max_length=12, choices=Especialidad.choices, default=Especialidad.GENERAL
+    )
+    tipo = models.CharField(
+        max_length=10, choices=Tipo.choices, default=Tipo.CORRECTIVO
+    )
+    prioridad = models.CharField(
+        max_length=5, choices=Prioridad.choices, default=Prioridad.MEDIA
+    )
+    estado = models.CharField(
+        max_length=11, choices=Estado.choices, default=Estado.SIN_ASIGNAR
+    )
+    mecanico = models.ForeignKey(
+        'operaciones.Persona', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='ordenes',
+    )
+    pozo = models.CharField(max_length=20, blank=True)
+    diagnostico = models.TextField(
+        blank=True, help_text='Qué se hizo para resolver el trabajo'
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    iniciado_en = models.DateTimeField(null=True, blank=True)
+    completado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Orden de Trabajo'
+        verbose_name_plural = 'Órdenes de Trabajo'
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f'{self.codigo} · {self.bus.numero}'
+
+    @property
+    def abierta(self):
+        return self.estado != self.Estado.COMPLETADO

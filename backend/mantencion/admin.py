@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 from .models import (
-    CategoriaChecklist, ItemChecklist, Checklist, RespuestaChecklist, Incidente,
+    CategoriaChecklist, ItemChecklist, Checklist, RespuestaChecklist,
+    Incidente, OrdenTrabajo,
 )
 
 
@@ -40,4 +41,11 @@ class ChecklistAdmin(admin.ModelAdmin):
 class IncidenteAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'bus', 'gravedad', 'estado', 'origen', 'creado_en')
     list_filter = ('gravedad', 'estado', 'origen')
+    search_fields = ('codigo', 'descripcion')
+
+
+@admin.register(OrdenTrabajo)
+class OrdenTrabajoAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'bus', 'especialidad', 'estado', 'prioridad', 'mecanico', 'pozo')
+    list_filter = ('estado', 'especialidad', 'tipo', 'prioridad')
     search_fields = ('codigo', 'descripcion')

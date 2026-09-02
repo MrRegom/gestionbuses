@@ -117,7 +117,7 @@ export const NAV_GROUPS = [
         short: 'Taller',
         icon: Wrench,
         title: 'Taller y Mantenimiento',
-        subtitle: 'Control de reparaciones y preventivos',
+        subtitle: 'Bandeja de fallas y órdenes de trabajo',
         ready: true,
       },
     ],

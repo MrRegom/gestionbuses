@@ -2,10 +2,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from .services import ChecklistService, IncidenteService
+from flota.serializers import BusSerializer
+from operaciones.serializers import PersonaSerializer
+
+from .services import ChecklistService, IncidenteService, TallerService
 from .serializers import (
     CategoriaChecklistSerializer, ChecklistSerializer,
-    ChecklistResumenSerializer, IncidenteSerializer,
+    ChecklistResumenSerializer, IncidenteSerializer, OrdenTrabajoSerializer,
 )
 
 
@@ -132,3 +135,108 @@ class IncidenteEstadoView(APIView):
 
         return Response(IncidenteSerializer(incidente).data,
                         status=status.HTTP_200_OK)
+
+
+# ── TALLER ───────────────────────────────────────────────────
+class TableroView(APIView):
+    """Todo lo que el jefe de mecánicos necesita en una sola llamada:
+    la bandeja de fallas sin triar, el kanban de órdenes y los mecánicos
+    disponibles para asignar."""
+
+    def get(self, request):
+        return Response({
+            'bandeja': IncidenteSerializer(TallerService.get_bandeja(), many=True).data,
+            'ordenes': OrdenTrabajoSerializer(TallerService.get_ordenes(), many=True).data,
+            'mecanicos': PersonaSerializer(TallerService.get_mecanicos(), many=True).data,
+        }, status=status.HTTP_200_OK)
+
+
+class OrdenListCreateView(APIView):
+    def get(self, request):
+        ordenes = TallerService.get_ordenes()
+        estado = request.query_params.get('estado')
+        if estado:
+            ordenes = ordenes.filter(estado=estado)
+        return Response(OrdenTrabajoSerializer(ordenes, many=True).data,
+                        status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Crea una orden desde un incidente, o un preventivo si no viene
+        `incidente_id`."""
+        incidente_id = request.data.get('incidente_id')
+        try:
+            if incidente_id:
+                orden = TallerService.crear_desde_incidente(
+                    incidente_id=incidente_id,
+                    especialidad=request.data.get('especialidad'),
+                    prioridad=request.data.get('prioridad'),
+                    tipo=request.data.get('tipo'),
+                )
+            else:
+                orden = TallerService.crear_preventivo(
+                    bus_id=request.data.get('bus_id'),
+                    descripcion=request.data.get('descripcion', ''),
+                    especialidad=request.data.get('especialidad'),
+                    prioridad=request.data.get('prioridad', 'BAJA'),
+                )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrdenTrabajoSerializer(orden).data,
+                        status=status.HTTP_201_CREATED)
+
+
+class OrdenAsignarView(APIView):
+    def post(self, request, pk):
+        try:
+            orden = TallerService.asignar(
+                pk,
+                request.data.get('mecanico_id'),
+                request.data.get('pozo', ''),
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrdenTrabajoSerializer(orden).data, status=status.HTTP_200_OK)
+
+
+class OrdenIniciarView(APIView):
+    def post(self, request, pk):
+        try:
+            orden = TallerService.iniciar(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrdenTrabajoSerializer(orden).data, status=status.HTTP_200_OK)
+
+
+class OrdenCompletarView(APIView):
+    def post(self, request, pk):
+        try:
+            orden = TallerService.completar(pk, request.data.get('diagnostico', ''))
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrdenTrabajoSerializer(orden).data, status=status.HTTP_200_OK)
+
+
+class BusLiberarView(APIView):
+    """Devuelve el bus a la flota. Falla si le queda trabajo abierto."""
+
+    def post(self, request, pk):
+        try:
+            bus = TallerService.liberar_bus(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(BusSerializer(bus).data, status=status.HTTP_200_OK)
+
+
+class BusNoOperativoView(APIView):
+    def post(self, request, pk):
+        try:
+            bus = TallerService.marcar_no_operativo(pk, request.data.get('motivo', ''))
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(BusSerializer(bus).data, status=status.HTTP_200_OK)

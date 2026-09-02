@@ -117,9 +117,76 @@ class IncidenteRepository:
         return incidente
 
     @staticmethod
-    def siguiente_codigo():
-        """Correlativo INC-001. Se llama dentro de una transacción, así que
-        dos checklists cerrados a la vez no pueden tomar el mismo número."""
-        ultimo = Incidente.objects.order_by('-id').first()
-        numero = (ultimo.id + 1) if ultimo else 1
-        return f'INC-{numero:03d}'
+    def create_con_codigo(data: dict):
+        """Crea el incidente y le estampa el código a partir de su propio id.
+
+        Derivarlo del id ya asignado, en vez de calcular max(id)+1 antes del
+        INSERT, elimina la carrera entre dos peticiones simultáneas.
+        """
+        incidente = Incidente.objects.create(**data)
+        incidente.codigo = f'INC-{incidente.pk:03d}'
+        incidente.save(update_fields=['codigo'])
+        return incidente
+
+
+class OrdenTrabajoRepository:
+    @staticmethod
+    def get_todas():
+        from .models import OrdenTrabajo
+        return (
+            OrdenTrabajo.objects
+            .select_related('bus', 'mecanico', 'incidente')
+        )
+
+    @staticmethod
+    def get_by_id(orden_id: int):
+        from .models import OrdenTrabajo
+        try:
+            return (
+                OrdenTrabajo.objects
+                .select_related('bus', 'mecanico', 'incidente')
+                .get(id=orden_id)
+            )
+        except OrdenTrabajo.DoesNotExist:
+            return None
+
+    @staticmethod
+    def get_abiertas_de_bus(bus):
+        from .models import OrdenTrabajo
+        return OrdenTrabajo.objects.filter(bus=bus).exclude(
+            estado=OrdenTrabajo.Estado.COMPLETADO
+        )
+
+    @staticmethod
+    def create(data: dict):
+        from .models import OrdenTrabajo
+        return OrdenTrabajo.objects.create(**data)
+
+    @staticmethod
+    def update(orden, data: dict):
+        for field, value in data.items():
+            setattr(orden, field, value)
+        orden.save()
+        return orden
+
+    @staticmethod
+    def create_con_codigo(data: dict):
+        """Misma estrategia que en Incidente: el código sale del id ya
+        asignado, no de un max(id)+1 leído antes del INSERT."""
+        from .models import OrdenTrabajo
+        orden = OrdenTrabajo.objects.create(**data)
+        orden.codigo = f'OT-{orden.pk:03d}'
+        orden.save(update_fields=['codigo'])
+        return orden
+
+    @staticmethod
+    def incidentes_sin_orden():
+        """Bandeja del jefe de mecánicos: fallas que aún no se han
+        convertido en trabajo."""
+        from .models import Incidente
+        return (
+            Incidente.objects
+            .filter(estado__in=[Incidente.Estado.ABIERTO, Incidente.Estado.EN_REVISION])
+            .filter(ordenes__isnull=True)
+            .select_related('bus', 'reportado_por')
+        )

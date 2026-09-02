@@ -5,6 +5,9 @@ from .views import (
     ChecklistListCreateView, ChecklistDetailView,
     ChecklistResponderView, ChecklistCompletarView,
     IncidenteListCreateView, IncidenteEstadoView,
+    TableroView, OrdenListCreateView, OrdenAsignarView,
+    OrdenIniciarView, OrdenCompletarView,
+    BusLiberarView, BusNoOperativoView,
 )
 
 urlpatterns = [
@@ -20,4 +23,15 @@ urlpatterns = [
     # Incidentes
     path('incidentes/', IncidenteListCreateView.as_view(), name='incidente-list-create'),
     path('incidentes/<int:pk>/estado/', IncidenteEstadoView.as_view(), name='incidente-estado'),
+
+    # Taller
+    path('tablero/', TableroView.as_view(), name='taller-tablero'),
+    path('ordenes/', OrdenListCreateView.as_view(), name='orden-list-create'),
+    path('ordenes/<int:pk>/asignar/', OrdenAsignarView.as_view(), name='orden-asignar'),
+    path('ordenes/<int:pk>/iniciar/', OrdenIniciarView.as_view(), name='orden-iniciar'),
+    path('ordenes/<int:pk>/completar/', OrdenCompletarView.as_view(), name='orden-completar'),
+
+    # Decisión sobre el bus
+    path('buses/<int:pk>/liberar/', BusLiberarView.as_view(), name='bus-liberar'),
+    path('buses/<int:pk>/no-operativo/', BusNoOperativoView.as_view(), name='bus-no-operativo'),
 ]
