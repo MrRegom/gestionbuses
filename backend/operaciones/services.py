@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 from django.db import transaction
 
 from .repositories import PersonaRepository
-from .models import Persona, Postura, AsignacionTripulacion, Corrida
+from .models import (
+    Persona, Postura, AsignacionTripulacion, Corrida, DOTACION_REQUERIDA,
+)
 
 class TripulacionService:
     @staticmethod
@@ -117,6 +119,15 @@ class PlanificacionService:
                 f"{persona.nombre} es {persona.get_rol_display()} y no puede ir como tripulación."
             )
 
+        # El puesto en el viaje tiene que corresponder al cargo: la
+        # dotación son dos conductores y un asistente, no tres personas
+        # intercambiables. Un asistente no va al volante.
+        if persona.rol != rol:
+            raise ValueError(
+                f"{persona.nombre} es {persona.get_rol_display()} "
+                f"y no puede ir como {rol.lower()}."
+            )
+
         # Nadie puede estar en dos servicios que se pisan en el horario.
         otras = (
             AsignacionTripulacion.objects
@@ -129,6 +140,23 @@ class PlanificacionService:
             raise ValueError(
                 f"{persona.nombre} ya viaja en la postura {choque.postura.codigo}, "
                 f"que se solapa con esta."
+            )
+
+        # La dotación es fija: dos conductores y un asistente. Sumar uno
+        # de más no es un servicio mejor cubierto, es un error de
+        # planificación que además bloquea a esa persona para otro viaje.
+        cupo = DOTACION_REQUERIDA.get(rol)
+        if cupo is None:
+            raise ValueError(f'Rol en viaje inválido: {rol}')
+
+        ya_asignados = postura.tripulacion.filter(rol_en_viaje=rol).exclude(persona=persona).count()
+        if ya_asignados >= cupo:
+            singular = 'conductor' if rol == Persona.Rol.CONDUCTOR else 'asistente'
+            cubierto = (
+                f'sus {cupo} {singular}es' if cupo > 1 else f'su {singular}'
+            )
+            raise ValueError(
+                f'La postura {postura.codigo} ya tiene {cubierto}.'
             )
 
         return PosturaRepository.asignar_tripulacion(postura, persona, rol)

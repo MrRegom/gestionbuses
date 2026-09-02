@@ -44,6 +44,16 @@ class Persona(models.Model):
     def __str__(self):
         return f"{self.nombre} ({self.rut})"
 
+# Composición fija de la tripulación de un servicio, confirmada con
+# Operaciones: dos conductores que se turnan al volante y un asistente.
+# Vive aquí, y no repartida por el código, para que cambiarla sea tocar
+# una sola línea.
+DOTACION_REQUERIDA = {
+    'CONDUCTOR': 2,
+    'ASISTENTE': 1,
+}
+
+
 class Ciudad(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
 
@@ -98,6 +108,31 @@ class Postura(models.Model):
 
     def __str__(self):
         return self.codigo
+
+    def dotacion(self):
+        """Cuántos van asignados por rol."""
+        conteo = {rol: 0 for rol in DOTACION_REQUERIDA}
+        for a in self.tripulacion.all():
+            if a.rol_en_viaje in conteo:
+                conteo[a.rol_en_viaje] += 1
+        return conteo
+
+    def faltantes(self):
+        """Cuántos faltan por rol para completar la tripulación."""
+        actual = self.dotacion()
+        return {
+            rol: max(0, requerido - actual[rol])
+            for rol, requerido in DOTACION_REQUERIDA.items()
+        }
+
+    @property
+    def dotacion_completa(self):
+        return not any(self.faltantes().values())
+
+    @property
+    def recursos_completos(self):
+        """Lista para salir: con máquina y con la tripulación completa."""
+        return self.bus_id is not None and self.dotacion_completa
 
 class AsignacionTripulacion(models.Model):
     postura = models.ForeignKey(Postura, on_delete=models.CASCADE, related_name='tripulacion')

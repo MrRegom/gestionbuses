@@ -210,17 +210,24 @@ class PersonalDisponibleView(APIView):
     def get(self, request, pk):
         try:
             filas = PlanificacionService.personal_disponible(pk)
+            postura = PlanificacionService.get_postura(pk)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response([
-            {
-                'persona': PersonaSerializer(f['persona']).data,
-                'disponible': f['disponible'],
-                'motivo': f['motivo'],
-            }
-            for f in filas
-        ], status=status.HTTP_200_OK)
+        # Se acompaña de la dotación para que la interfaz sepa qué rol
+        # ofrecer y cuándo dejar de ofrecerlo.
+        return Response({
+            'dotacion': postura.dotacion(),
+            'faltantes': postura.faltantes(),
+            'personal': [
+                {
+                    'persona': PersonaSerializer(f['persona']).data,
+                    'disponible': f['disponible'],
+                    'motivo': f['motivo'],
+                }
+                for f in filas
+            ],
+        }, status=status.HTTP_200_OK)
 
 
 # ── CORRIDAS ─────────────────────────────────────────────────

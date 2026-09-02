@@ -25,15 +25,23 @@ const FORM_VACIO = { codigo: '', ruta_id: '', fecha: '', hora_salida: '', estado
    ───────────────────────────────────────────────────────────── */
 function PanelPostura({ postura, buses, onCerrar, onCambio }) {
   const [disponibles, setDisponibles] = useState([]);
+  const [dotacion, setDotacion] = useState({ CONDUCTOR: 0, ASISTENTE: 0 });
+  const [faltantes, setFaltantes] = useState({ CONDUCTOR: 2, ASISTENTE: 1 });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [rolNuevo, setRolNuevo] = useState('CONDUCTOR');
+  // Si el rol elegido ya está cubierto, se ofrece el que falta.
+  const rolEfectivo = faltantes[rolNuevo] > 0
+    ? rolNuevo
+    : (faltantes.CONDUCTOR > 0 ? 'CONDUCTOR' : (faltantes.ASISTENTE > 0 ? 'ASISTENTE' : null));
 
   const cargarDisponibles = useCallback(async () => {
     setCargando(true);
     try {
       const { data } = await axios.get(`/api/operaciones/posturas/${postura.id}/disponibles/`);
-      setDisponibles(data);
+      setDisponibles(data.personal);
+      setDotacion(data.dotacion);
+      setFaltantes(data.faltantes);
     } catch {
       setError('No se pudo cargar el personal disponible.');
     }
@@ -58,13 +66,17 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
 
   const asignarPersona = personaId => accion(() =>
     axios.post(`/api/operaciones/posturas/${postura.id}/asignar/`, {
-      persona_id: personaId, rol_en_viaje: rolNuevo,
+      persona_id: personaId, rol_en_viaje: rolEfectivo,
     }));
 
   const quitarPersona = asignacionId => accion(() =>
     axios.delete(`/api/operaciones/asignaciones/${asignacionId}/`));
 
-  const libres = disponibles.filter(d => d.disponible);
+  // Solo se ofrece a quien puede ocupar el puesto que falta: un
+  // asistente no va al volante ni un conductor de asistente.
+  const libres = disponibles.filter(
+    d => d.disponible && (!rolEfectivo || d.persona.rol === rolEfectivo)
+  );
   const ocupados = disponibles.filter(d => !d.disponible && d.motivo !== 'Ya asignado a esta postura');
 
   return createPortal(
@@ -115,9 +127,39 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
           </div>
 
           {/* ── Tripulación asignada ── */}
-          <div className="section-label">
-            Tripulación ({postura.tripulacion.length})
+          <div className="section-label">Tripulación</div>
+          <div className="grid-2 gap-3 mb-3">
+            <div className="stat-box">
+              <div className="stat-box-label">Conductores</div>
+              <div className="stat-box-value">
+                {dotacion.CONDUCTOR}<span className="fs-12 fw-400 text-muted"> / 2</span>
+              </div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-box-label">Asistente</div>
+              <div className="stat-box-value">
+                {dotacion.ASISTENTE}<span className="fs-12 fw-400 text-muted"> / 1</span>
+              </div>
+            </div>
           </div>
+
+          {!rolEfectivo ? (
+            <div className="notice ok mb-4">
+              <Check size={16} className="notice-icon" />
+              <div className="notice-content">Tripulación completa.</div>
+            </div>
+          ) : (
+            <div className="notice warn mb-4">
+              <AlertCircle size={16} className="notice-icon" />
+              <div className="notice-content">
+                Faltan{' '}
+                {[
+                  faltantes.CONDUCTOR > 0 && `${faltantes.CONDUCTOR} conductor(es)`,
+                  faltantes.ASISTENTE > 0 && `${faltantes.ASISTENTE} asistente`,
+                ].filter(Boolean).join(' y ')}.
+              </div>
+            </div>
+          )}
           {postura.tripulacion.length === 0 ? (
             <div className="info-box text-center text-muted mb-5">Sin tripulación asignada</div>
           ) : (
@@ -155,12 +197,14 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
             <select
               className="form-input form-select btn-sm"
               style={{ width: 'auto', height: 28, fontSize: 12, padding: '0 28px 0 8px' }}
-              value={rolNuevo}
+              value={rolEfectivo ?? ''}
               onChange={e => setRolNuevo(e.target.value)}
+              disabled={!rolEfectivo}
               aria-label="Rol en el viaje"
             >
-              <option value="CONDUCTOR">Conductor</option>
-              <option value="ASISTENTE">Asistente</option>
+              {faltantes.CONDUCTOR > 0 && <option value="CONDUCTOR">Conductor</option>}
+              {faltantes.ASISTENTE > 0 && <option value="ASISTENTE">Asistente</option>}
+              {!rolEfectivo && <option value="">Completa</option>}
             </select>
           </div>
 
@@ -184,6 +228,8 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={() => asignarPersona(persona.id)}
+                  disabled={!rolEfectivo}
+                  title={rolEfectivo ? `Asignar como ${rolEfectivo.toLowerCase()}` : 'Tripulación completa'}
                 >
                   <UserPlus size={13} /> Asignar
                 </button>
@@ -324,7 +370,7 @@ export default function Planificacion() {
   });
 
   const sinBus = posturas.filter(p => !p.bus).length;
-  const sinTripulacion = posturas.filter(p => p.tripulacion.length === 0).length;
+  const dotacionIncompleta = posturas.filter(p => !p.dotacion_completa).length;
 
   return (
     <>
@@ -358,8 +404,8 @@ export default function Planificacion() {
         <div className="kpi-card">
           <span className="kpi-icon-wrap danger"><Users size={18} /></span>
           <div className="kpi-body">
-            <div className="kpi-value">{loading || error ? '—' : sinTripulacion}</div>
-            <div className="kpi-label">Sin tripulación</div>
+            <div className="kpi-value">{loading || error ? '—' : dotacionIncompleta}</div>
+            <div className="kpi-label">Dotación incompleta</div>
           </div>
         </div>
       </div>
@@ -451,6 +497,7 @@ export default function Planificacion() {
                       </td>
                       <td data-label="Tripulación">
                         {p.tripulacion.length > 0 ? (
+                          <div className="flex items-center gap-2">
                           <div className="crew-avatars">
                             {p.tripulacion.slice(0, 3).map(t => (
                               <span
@@ -464,8 +511,14 @@ export default function Planificacion() {
                             {p.tripulacion.length > 3 && (
                               <span className="crew-more">+{p.tripulacion.length - 3}</span>
                             )}
+                            </div>
+                            {!p.dotacion_completa && (
+                              <span className="badge warn">
+                                {p.dotacion.CONDUCTOR}/2 · {p.dotacion.ASISTENTE}/1
+                              </span>
+                            )}
                           </div>
-                        ) : <span className="badge warn">0 asignados</span>}
+                        ) : <span className="badge warn">Sin tripulación</span>}
                       </td>
                       <td data-label="Estado">
                         <span className={`badge ${ESTADO_BADGE[p.estado] ?? 'neutral'}`}>

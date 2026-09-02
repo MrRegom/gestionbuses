@@ -36,10 +36,20 @@ class PosturaSerializer(serializers.ModelSerializer):
     bus = BusSerializer(read_only=True)
     bus_id = serializers.PrimaryKeyRelatedField(queryset=BusSerializer.Meta.model.objects.all(), source='bus', write_only=True, required=False, allow_null=True)
     tripulacion = AsignacionTripulacionSerializer(many=True, read_only=True)
+    dotacion = serializers.SerializerMethodField()
+    faltantes = serializers.SerializerMethodField()
+    dotacion_completa = serializers.BooleanField(read_only=True)
+    recursos_completos = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Postura
         fields = '__all__'
+
+    def get_dotacion(self, obj):
+        return obj.dotacion()
+
+    def get_faltantes(self, obj):
+        return obj.faltantes()
 
 
 
