@@ -1158,21 +1158,8 @@ tbody tr.clickable { cursor: pointer; }
   .kanban-board { grid-template-columns: repeat(2,1fr); }
   .kpi-row { flex-wrap: wrap; }
 }
-@media (max-width: 900px) {
-  .sidebar { width: 56px; }
-  .sidebar .nav-item span:not(.nav-icon):not(.nav-badge),
-  .sidebar .nav-group-label,
-  .sidebar .logo-name, .sidebar .logo-sub,
-  .sidebar .user-name, .sidebar .user-role { display: none; }
-  .sidebar .nav-item { justify-content: center; padding: var(--sp-3); }
-  .sidebar-logo { justify-content: center; padding: var(--sp-4); }
-  .sidebar-logo .logo-mark { margin: 0; }
-  .main { margin-left: 56px; }
-  .grid-4 { grid-template-columns: repeat(2,1fr); }
-}
+
 @media (max-width: 600px) {
-  .sidebar { display: none; }
-  .main { margin-left: 0; }
   .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
   .kpi-row { flex-direction: column; }
   .page-content { padding: var(--sp-4); }
