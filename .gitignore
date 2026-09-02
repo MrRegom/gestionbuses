@@ -23,8 +23,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-db.sqlite3
-db.sqlite3-journal
+# db.sqlite3
+# db.sqlite3-journal
 
 # Node
 node_modules/

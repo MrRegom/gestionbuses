@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
+import shutil
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -83,10 +85,19 @@ WSGI_APPLICATION = 'sgo_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+DB_PATH = BASE_DIR / 'db.sqlite3'
+
+# Vercel env is read-only, copy DB to /tmp so we can write to it during the lambda lifecycle
+if os.environ.get('VERCEL'):
+    TMP_DB_PATH = Path('/tmp/db.sqlite3')
+    if not TMP_DB_PATH.exists():
+        shutil.copy2(DB_PATH, TMP_DB_PATH)
+    DB_PATH = TMP_DB_PATH
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': DB_PATH,
     }
 }
 
