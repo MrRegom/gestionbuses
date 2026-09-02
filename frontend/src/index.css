@@ -1,100 +1,104 @@
 /* ============================================================
    SISTEMA DE GESTIÓN OPERACIONAL DE FLOTA — PLUSS CHILE
-   Design System v2 — Estilo Corporativo Empresarial
+   Design System v3 — Fluent / Microsoft 365 Style
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* ── TOKENS ─────────────────────────────────────────────────── */
 :root {
-  /* Brand PlusChile — extraído de plusschile.cl */
+  /* Brand PlusChile */
   --gold:          #B8922A;
   --gold-light:    #D4A832;
-  --gold-pale:     #FBF5E6;
+  --gold-pale:     #FAF5E8;
   --gold-border:   #E8D5A0;
 
-  --navy:          #0D1B3E;
-  --navy-hover:    #162752;
-  --navy-active:   #1E3A6A;
-  --navy-light:    #EEF2FA;
+  --navy:          #1B2A4A;
+  --navy-hover:    #223360;
+  --navy-active:   #243975;
+  --navy-light:    #F0F3FA;
 
-  /* UI Backgrounds */
-  --bg-app:        #F4F5F7;
+  /* ─ Fluent Accent ─ UN SOLO AZUL preciso */
+  --accent:        #0F6CBD;   /* Microsoft Blue */
+  --accent-hover:  #115EA3;
+  --accent-soft:   #EBF3FB;   /* fondo suave del badge/icon */
+  --accent-border: #CFE4F5;
+
+  /* UI Backgrounds – todos muy neutros */
+  --bg-app:        #F5F5F5;
   --bg-white:      #FFFFFF;
-  --bg-muted:      #F9FAFB;
-  --bg-hover:      #F3F4F6;
+  --bg-muted:      #FAFAFA;
+  --bg-hover:      #F0F0F0;
+  --bg-subtle:     #F5F5F5;
 
   /* Borders */
-  --border:        #E5E7EB;
-  --border-strong: #D1D5DB;
-  --border-focus:  #B8922A;
+  --border:        #E0E0E0;
+  --border-strong: #C8C8C8;
+  --border-focus:  #0F6CBD;
 
   /* Text */
-  --text-primary:  #111827;
-  --text-secondary:#4B5563;
-  --text-muted:    #9CA3AF;
-  --text-disabled: #D1D5DB;
+  --text-primary:  #1A1A1A;
+  --text-secondary:#424242;
+  --text-muted:    #767676;
+  --text-disabled: #C4C4C4;
   --text-white:    #FFFFFF;
   --text-gold:     #B8922A;
-  --text-navy:     #0D1B3E;
+  --text-navy:     #1B2A4A;
 
-  /* Status — Completa */
-  --ok:            #16A34A;
-  --ok-bg:         #F0FDF4;
-  --ok-border:     #BBF7D0;
-  --ok-text:       #15803D;
+  /* Status — solo texto y borde, NUNCA fondo intenso */
+  --ok:            #107C10;  /* verde Microsoft */
+  --ok-bg:         #F1FAF1;
+  --ok-border:     #9FD89F;
+  --ok-text:       #0B5C0B;
 
-  /* Status — Alerta */
-  --warn:          #D97706;
-  --warn-bg:       #FFFBEB;
-  --warn-border:   #FDE68A;
-  --warn-text:     #B45309;
+  --warn:          #8A4E00;  /* ambar oscuro – solo texto */
+  --warn-bg:       #FFF8F0;
+  --warn-border:   #F7CDA4;
+  --warn-text:     #6B3A00;
 
-  /* Status — Problema/Bloqueado */
-  --danger:        #DC2626;
-  --danger-bg:     #FEF2F2;
-  --danger-border: #FECACA;
-  --danger-text:   #B91C1C;
+  --danger:        #C50F1F;
+  --danger-bg:     #FDF3F4;
+  --danger-border: #F5C2C7;
+  --danger-text:   #A00010;
 
-  /* Status — Información */
-  --info:          #2563EB;
-  --info-bg:       #EFF6FF;
-  --info-border:   #BFDBFE;
-  --info-text:     #1D4ED8;
+  --info:          #0F6CBD;
+  --info-bg:       #EBF3FB;
+  --info-border:   #CFE4F5;
+  --info-text:     #0E5BA3;
 
-  /* Status — Neutral */
-  --neutral:       #6B7280;
-  --neutral-bg:    #F9FAFB;
-  --neutral-border:#E5E7EB;
-  --neutral-text:  #374151;
+  --neutral:       #616161;
+  --neutral-bg:    #F5F5F5;
+  --neutral-border:#E0E0E0;
+  --neutral-text:  #424242;
 
   /* Spacing */
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
   --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
   --sp-12: 48px; --sp-16: 64px;
 
-  /* Radius — contenido, NO redondeo excesivo */
-  --r-sm:   4px;
-  --r-md:   6px;
-  --r-lg:   8px;
-  --r-xl:   10px;
+  /* Radius – Fluent usa bordes muy sutiles (4px es suficiente) */
+  --r-sm:   2px;
+  --r-md:   4px;
+  --r-lg:   6px;
+  --r-xl:   8px;
+  --r-2xl:  12px;
   --r-full: 9999px;
 
-  /* Shadows — sutiles, corporativas */
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,0.08), 0 4px 6px rgba(0,0,0,0.04);
+  /* Shadows – Fluent: muy planas, elevación por borde más que sombra */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 16px rgba(0,0,0,0.09);
 
   /* Sidebar */
   --sidebar-w:   220px;
 
   /* Transitions */
-  --t-fast: 120ms ease;
-  --t-med:  200ms ease;
+  --t-fast: 100ms ease;
+  --t-med:  180ms ease;
 
   /* Font */
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ── RESET ───────────────────────────────────────────────────── */
@@ -400,37 +404,46 @@ input, select, textarea { font-family: var(--font); }
    ═══════════════════════════════════════════════════════════════ */
 .kpi-row {
   display: flex;
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-6);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
 }
 
+/* ─ KPI Card estilo Fluent: borde izq de acento, fondo blanco puro */
 .kpi-card {
   flex: 1;
   background: var(--bg-white);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: var(--r-lg);
   padding: var(--sp-4) var(--sp-5);
   display: flex; align-items: center; gap: var(--sp-4);
   box-shadow: var(--shadow-xs);
-  transition: box-shadow var(--t-fast);
+  transition: box-shadow var(--t-fast), border-color var(--t-fast);
   min-width: 0;
 }
 
-.kpi-card:hover { box-shadow: var(--shadow-sm); }
-
-.kpi-icon-wrap {
-  width: 44px; height: 44px;
-  border-radius: var(--r-lg);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px; flex-shrink: 0;
+.kpi-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-left-color: var(--accent-hover);
 }
 
-.kpi-icon-wrap.gold    { background: var(--gold-pale); }
-.kpi-icon-wrap.ok { color: var(--ok-text); background: var(--ok); }
-.kpi-icon-wrap.warn { color: var(--warn-text); background: var(--warn); }
-.kpi-icon-wrap.danger { color: var(--danger-text); background: var(--danger); }
-.kpi-icon-wrap.info { color: var(--info); background: #e0f2fe; }
-.kpi-icon-wrap.gold { color: var(--gold); background: #fef9c3; }
+/* Iconos: fondo muy suave, icono de color preciso */
+.kpi-icon-wrap {
+  width: 40px; height: 40px;
+  border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+/* Solo variantes de color en icono, sin fondo saturado */
+.kpi-icon-wrap.ok     { background: var(--ok-bg);     color: var(--ok); }
+.kpi-icon-wrap.warn   { background: var(--warn-bg);   color: var(--warn); }
+.kpi-icon-wrap.danger { background: var(--danger-bg); color: var(--danger); }
+.kpi-icon-wrap.info   { background: var(--accent-soft); color: var(--accent); }
+.kpi-icon-wrap.gold   { background: var(--gold-pale); color: var(--gold); }
+.kpi-icon-wrap.neutral{ background: var(--neutral-bg); color: var(--neutral); }
 
 /* ---------------------------------
    MOBILE RESPONSIVE
@@ -681,6 +694,7 @@ tbody tr.clickable { cursor: pointer; }
 .badge.warn    { background: var(--warn-bg);     color: var(--warn-text);    border-color: var(--warn-border); }
 .badge.danger  { background: var(--danger-bg);   color: var(--danger-text);  border-color: var(--danger-border); }
 .badge.info    { background: var(--info-bg);     color: var(--info-text);    border-color: var(--info-border); }
+.badge.accent  { background: var(--accent-soft); color: var(--accent);       border-color: var(--accent-border); }
 .badge.neutral { background: var(--neutral-bg);  color: var(--neutral-text); border-color: var(--neutral-border); }
 .badge.gold    { background: var(--gold-pale);   color: var(--gold);         border-color: var(--gold-border); }
 .badge.navy    { background: var(--navy);        color: #fff;                border-color: var(--navy); }
@@ -755,11 +769,11 @@ tbody tr.clickable { cursor: pointer; }
 }
 
 .btn-primary {
-  background: var(--navy);
+  background: var(--accent);
   color: #fff;
-  border-color: var(--navy);
+  border-color: var(--accent);
 }
-.btn-primary:hover { background: var(--navy-hover); text-decoration: none; color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); text-decoration: none; color: #fff; }
 
 .btn-gold {
   background: var(--gold);
