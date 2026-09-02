@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asignar Tripulación — PlussChile SGO</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .layout-asgn { display: grid; grid-template-columns: 320px 1fr; gap: var(--sp-5); }
+
+    .postura-ref-card { background: var(--gold-pale); border: 1px solid var(--gold-border); border-radius: var(--r-lg); padding: var(--sp-4); margin-bottom: var(--sp-4); }
+    .ref-ruta { font-size: 16px; font-weight: 800; margin-bottom: var(--sp-2); }
+    .ref-ruta .arrow { color: var(--gold); }
+
+    /* Slot selector */
+    .slot-tabs { display: flex; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; gap: 3px; margin-bottom: var(--sp-5); }
+    .slot-tab { flex: 1; padding: var(--sp-3) var(--sp-2); border-radius: 5px; text-align: center; cursor: pointer; transition: all var(--t-fast); font-size: 11px; font-weight: 600; color: var(--text-muted); border: none; background: transparent; font-family: var(--font); }
+    .slot-tab:hover { background: var(--bg-white); color: var(--text-primary); }
+    .slot-tab.active { background: var(--bg-white); color: var(--text-primary); box-shadow: var(--shadow-xs); border: 1px solid var(--border); }
+    .slot-tab.filled { color: var(--ok-text); }
+    .slot-tab.conflict { color: var(--danger-text); }
+    .slot-tab-icon { display: block; font-size: 16px; margin-bottom: 2px; }
+    .slot-tab-label { display: block; font-size: 11px; }
+
+    /* Confirm sidebar */
+    .confirm-card { background: var(--gold-pale); border: 1px solid var(--gold-border); border-radius: var(--r-lg); padding: var(--sp-5); display: none; }
+    .confirm-card.open { display: block; animation: fadeIn 0.2s both; }
+
+    /* Candidate cards */
+    .candidate {
+      display: flex; align-items: center; gap: var(--sp-4);
+      padding: var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-md);
+      margin-bottom: var(--sp-3); cursor: pointer; transition: all var(--t-fast);
+      background: var(--bg-white);
+      border-left: 4px solid var(--border);
+    }
+    .candidate:hover { border-color: var(--border-strong); border-left-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+    .candidate.verde   { border-left-color: var(--ok); }
+    .candidate.amarillo{ border-left-color: var(--warn); }
+    .candidate.rojo    { border-left-color: var(--danger); cursor: not-allowed; opacity: 0.6; }
+
+    .c-ava { width: 40px; height: 40px; border-radius: var(--r-full); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .c-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .c-rut  { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+    .c-type { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Barra horas */
+    .hours-wrap { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
+    .hours-num { font-size: 10px; color: var(--text-muted); min-width: 28px; }
+    .hours-bar-track { flex: 1; height: 4px; background: var(--border); border-radius: var(--r-full); overflow: hidden; }
+    .hours-bar-fill { height: 100%; border-radius: var(--r-full); transition: width 300ms; }
+
+    @media (max-width: 900px) { .layout-asgn { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div id="topbar-mount"></div>
+    <div class="page-content fade-in">
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 mb-5 fs-12 text-muted">
+        <a href="postura.html" class="text-muted">POS-003</a> <span>›</span>
+        <span style="color:var(--text-primary);font-weight:600">Asignar Tripulación</span>
+      </div>
+
+      <div class="layout-asgn">
+        <!-- Panel izquierdo -->
+        <div>
+          <!-- Postura referencia -->
+          <div class="postura-ref-card">
+            <div class="fs-11 text-muted mb-2 fw-600" style="text-transform:uppercase;letter-spacing:0.8px">Postura activa</div>
+            <div class="ref-ruta">Concepción <span class="arrow">→</span> Santiago</div>
+            <div class="flex gap-4 fs-12">
+              <span><strong style="color:var(--gold)">08:30</strong></span>
+              <span class="text-muted">Salón Cama</span>
+              <span class="text-muted">BUS 101</span>
+            </div>
+          </div>
+
+          <!-- Slot tabs -->
+          <div class="section-label mb-2">Puestos de tripulación</div>
+          <div class="slot-tabs">
+            <button class="slot-tab conflict" id="tab-0" onclick="selectSlot(0)">
+              <span class="slot-tab-icon">⚠️</span>
+              <span class="slot-tab-label">Conductor 1</span>
+              <span style="font-size:9px;color:var(--danger-text)">P. Núñez ⚠</span>
+            </button>
+            <button class="slot-tab active" id="tab-1" onclick="selectSlot(1)">
+              <span class="slot-tab-icon">+</span>
+              <span class="slot-tab-label">Conductor 2</span>
+              <span style="font-size:9px;color:var(--text-muted)">Sin asignar</span>
+            </button>
+            <button class="slot-tab" id="tab-2" onclick="selectSlot(2)">
+              <span class="slot-tab-icon">+</span>
+              <span class="slot-tab-label">Asistente</span>
+              <span style="font-size:9px;color:var(--text-muted)">Sin asignar</span>
+            </button>
+          </div>
+
+          <!-- Validación -->
+          <div class="card mb-4">
+            <div class="card-body" style="padding:var(--sp-4)">
+              <div class="section-label mb-2">Estado del motor de reglas</div>
+              <div class="flex-col gap-2">
+                <div class="flex items-center gap-2 fs-12"><span style="color:var(--danger-text)">●</span> Conductor 1 — Conflicto de postura</div>
+                <div class="flex items-center gap-2 fs-12"><span style="color:var(--warn-text)">●</span> Conductor 2 — Pendiente asignación</div>
+                <div class="flex items-center gap-2 fs-12"><span style="color:var(--warn-text)">●</span> Asistente — Pendiente asignación</div>
+              </div>
+              <div class="divider mt-3 mb-3"></div>
+              <div class="fs-11 text-muted">Reglas: solapamiento · descanso mínimo · límite jornada diaria</div>
+            </div>
+          </div>
+
+          <!-- Confirm box -->
+          <div class="confirm-card" id="confirm-box">
+            <div class="section-label mb-3">Confirmar asignación</div>
+            <div class="flex items-center gap-3 mb-4">
+              <div id="conf-ava" class="c-ava" style="width:40px;height:40px"></div>
+              <div>
+                <div id="conf-name" class="fw-700 fs-13"></div>
+                <div id="conf-meta" class="fs-11 text-muted"></div>
+              </div>
+              <div id="conf-sem" class="ml-auto"></div>
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label">Observación (opcional)</label>
+              <input class="form-input" type="text" id="conf-obs" placeholder="Ej: Relevo solicitado por Operaciones...">
+            </div>
+            <div class="flex gap-3">
+              <button class="btn btn-secondary flex-1" onclick="cancelConf()">Cancelar</button>
+              <button class="btn btn-primary flex-1" onclick="confirmar()">✓ Confirmar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel derecho: candidatos -->
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" id="cands-title">Candidatos — Conductor 2</span>
+              <div class="flex gap-2 ml-auto">
+                <div class="search-box" style="width:160px">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" placeholder="Buscar..." id="buscar" oninput="renderCandidatos()">
+                </div>
+                <select class="form-input form-select" id="fil-sem" style="width:140px" onchange="renderCandidatos()">
+                  <option value="">Todos</option>
+                  <option value="verde">🟢 Disponibles</option>
+                  <option value="amarillo">🟡 Con advertencia</option>
+                  <option value="rojo">🔴 No disponibles</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-body" id="cands-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('conductor');
+    document.getElementById('topbar-mount').innerHTML  = renderTopbar('Asignar Tripulación','POS-003 · Concepción → Santiago · 08:30');
+
+    const SLOT_LABELS = ['Conductor 1','Conductor 2','Asistente'];
+    const SLOT_ROLES  = ['CONDUCTOR','CONDUCTOR','ASISTENTE'];
+    let slotActual = 1;
+    let candSel = null;
+
+    function selectSlot(i) {
+      slotActual = i;
+      document.querySelectorAll('.slot-tab').forEach((el,j) => { if (j!==i) el.classList.remove('active'); });
+      document.getElementById(`tab-${i}`).classList.add('active');
+      document.getElementById('cands-title').textContent = `Candidatos — ${SLOT_LABELS[i]}`;
+      cancelConf();
+      renderCandidatos();
+    }
+
+    function renderCandidatos() {
+      const txt = document.getElementById('buscar').value.toLowerCase();
+      const sem = document.getElementById('fil-sem').value;
+      const rol = SLOT_ROLES[slotActual];
+
+      const items = DATA.personas.filter(p =>
+        p.rol === rol &&
+        (!txt || p.nombre.toLowerCase().includes(txt)) &&
+        (!sem || p.semaforo === sem)
+      );
+
+      const el = document.getElementById('cands-list');
+      if (!items.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">👤</div><div class="empty-title">Sin candidatos</div><div class="empty-sub">Cambia los filtros</div></div>`;
+        return;
+      }
+
+      el.innerHTML = items.map(p => {
+        const pct = Math.min((p.horas_hoy / 8) * 100, 100);
+        const barColor = p.horas_hoy >= 8 ? 'var(--danger)' : p.horas_hoy >= 6 ? 'var(--warn)' : 'var(--ok)';
+        const can = p.semaforo !== 'rojo';
+
+        return `
+        <div class="candidate ${p.semaforo}" onclick="${can ? `pick(${p.id})` : ''}">
+          <div class="c-ava" style="background:${getColor(p.id)}">${getInitials(p.nombre)}</div>
+          <div style="flex:1">
+            <div class="c-name">${p.nombre}</div>
+            <div class="c-rut">${p.rut}</div>
+            <div class="c-type">${p.rol === 'CONDUCTOR' ? '🚗' : '🧑'} ${p.tipo}</div>
+            <div class="hours-wrap">
+              <span class="hours-num">${p.horas_hoy}h</span>
+              <div class="hours-bar-track"><div class="hours-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+              <span class="fs-11 text-muted">/ 8h</span>
+            </div>
+            ${p.razon ? `<div style="font-size:10px;color:var(--warn-text);margin-top:4px;">⚠ ${p.razon}</div>` : ''}
+          </div>
+          <div>
+            ${can
+              ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();pick(${p.id})">Asignar</button>`
+              : `<span class="badge danger">No disponible</span>`}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function pick(id) {
+      candSel = DATA.personas.find(p => p.id === id);
+      if (!candSel) return;
+
+      document.getElementById('confirm-box').classList.add('open');
+      document.getElementById('conf-ava').textContent     = getInitials(candSel.nombre);
+      document.getElementById('conf-ava').style.background= getColor(candSel.id);
+      document.getElementById('conf-name').textContent    = candSel.nombre;
+      document.getElementById('conf-meta').textContent    = `${candSel.rol} ${candSel.tipo} · ${candSel.horas_hoy}h hoy · Slot: ${SLOT_LABELS[slotActual]}`;
+      document.getElementById('conf-sem').innerHTML       = semaforo(candSel.semaforo);
+      document.getElementById('confirm-box').scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
+
+    function cancelConf() {
+      candSel = null;
+      document.getElementById('confirm-box').classList.remove('open');
+    }
+
+    function confirmar() {
+      if (!candSel) return;
+      const tab = document.getElementById(`tab-${slotActual}`);
+      tab.querySelector('.slot-tab-icon').textContent = '✓';
+      tab.querySelector('.slot-tab-label').textContent = SLOT_LABELS[slotActual];
+      tab.lastElementChild.textContent = candSel.nombre.split(' ')[0];
+      tab.classList.remove('active','conflict'); tab.classList.add('filled');
+      cancelConf();
+      showToast(`${candSel.nombre} asignado como ${SLOT_LABELS[slotActual]}`, 'ok');
+      candSel = null;
+    }
+
+    selectSlot(1);
+  </script>
+</body>
+</html>

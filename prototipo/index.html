@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operaciones — PlussChile SGO</title>
+  <meta name="description" content="Dashboard de operaciones de flota — PlussChile Sistema de Gestión Operacional">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Layout principal de dos columnas */
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: var(--sp-5);
+    }
+
+    /* Tabla de posturas del día */
+    .no-bus {
+      display: flex; align-items: center; gap: var(--sp-2);
+      color: var(--danger-text);
+      font-size: 13px; font-weight: 600;
+    }
+    .no-bus::before { content: '—'; color: var(--text-muted); }
+
+    .td-no-crew {
+      color: var(--text-muted); font-size: 13px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* Fleet status bar */
+    .fleet-legend { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-4); }
+    .fleet-legend-item { display: flex; align-items: center; gap: var(--sp-2); font-size: 12px; color: var(--text-secondary); }
+    .fleet-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* Llegadas */
+    .llegada-item {
+      display: flex; align-items: center; gap: var(--sp-3);
+      padding: var(--sp-3) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .llegada-item:last-child { border-bottom: none; }
+    .llegada-bus { font-size: 13px; font-weight: 700; color: var(--text-primary); min-width: 70px; }
+    .llegada-hora { font-size: 12px; color: var(--text-muted); flex: 1; }
+
+    /* Activity feed */
+    .activity-item {
+      display: flex; align-items: flex-start; gap: var(--sp-3);
+      padding: var(--sp-3) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 8px; height: 8px; border-radius: var(--r-full);
+      flex-shrink: 0; margin-top: 5px;
+    }
+    .activity-text { font-size: 12px; color: var(--text-secondary); flex: 1; line-height: 1.5; }
+    .activity-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+    /* ── Row de acciones de postura ── */
+    .actions-menu {
+      position: absolute; right: 0; top: 100%; margin-top: 4px;
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-md);
+      width: 180px; z-index: 50;
+      display: none;
+      overflow: hidden;
+    }
+    .actions-menu.open { display: block; }
+    .actions-menu-item {
+      display: flex; align-items: center; gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
+      font-size: 13px; color: var(--text-primary);
+      cursor: pointer; transition: background var(--t-fast);
+    }
+    .actions-menu-item:hover { background: var(--bg-hover); }
+    .actions-menu-item.danger { color: var(--danger-text); }
+
+    .postura-row-actions { position: relative; }
+
+    @media (max-width: 1100px) {
+      .dashboard-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div id="topbar-mount"></div>
+
+    <div class="page-content fade-in">
+
+      <!-- ── KPI ROW ─────────────────────────────────────────── -->
+      <div class="kpi-row mb-6">
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap gold">🚌</div>
+          <div class="kpi-body">
+            <div class="kpi-value">47</div>
+            <div class="kpi-label">Posturas hoy</div>
+            <div class="kpi-sub">Programadas</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap ok">✓</div>
+          <div class="kpi-body">
+            <div class="kpi-value" style="color:var(--ok-text)">38</div>
+            <div class="kpi-label">Completas</div>
+            <div class="kpi-sub">80.9% del total</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap warn">⚠</div>
+          <div class="kpi-body">
+            <div class="kpi-value" style="color:var(--warn-text)">6</div>
+            <div class="kpi-label">Con alertas</div>
+            <div class="kpi-sub">Requieren atención</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap danger">✕</div>
+          <div class="kpi-body">
+            <div class="kpi-value" style="color:var(--danger-text)">3</div>
+            <div class="kpi-label">Problemas</div>
+            <div class="kpi-sub">Acción inmediata</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap info">🚌</div>
+          <div class="kpi-body">
+            <div class="kpi-value">12</div>
+            <div class="kpi-label">Buses disp.</div>
+            <div class="kpi-sub">De 52 totales</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon-wrap neutral">👤</div>
+          <div class="kpi-body">
+            <div class="kpi-value">15</div>
+            <div class="kpi-label">Conductores</div>
+            <div class="kpi-sub">Disponibles</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── LAYOUT PRINCIPAL ───────────────────────────────── -->
+      <div class="dashboard-layout">
+
+        <!-- Columna izquierda: tabla posturas + actividad -->
+        <div class="flex-col gap-5">
+
+          <!-- Tabla Posturas del día -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Posturas del día</span>
+              <div class="flex gap-3 ml-auto">
+                <div class="search-box" style="width:220px">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" placeholder="Buscar postura, bus o ruta..." id="buscar-pos" oninput="renderPosturas()">
+                </div>
+                <select class="form-input form-select" id="fil-estado" style="width:150px" onchange="renderPosturas()">
+                  <option value="">Todos los estados</option>
+                  <option value="COMPLETA">Completa</option>
+                  <option value="ALERTA">Alerta</option>
+                  <option value="PROBLEMA">Problema</option>
+                </select>
+                <button class="btn btn-primary" onclick="window.location='planificacion.html'">+ Nueva postura</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="posturas-table">
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Ruta / Servicio</th>
+                    <th>Bus Asignado</th>
+                    <th>Tripulación</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="posturas-tbody"></tbody>
+              </table>
+            </div>
+            <div class="card-footer flex items-center justify-between">
+              <span class="fs-12 text-muted" id="posturas-count">Cargando...</span>
+              <a href="planificacion.html" class="btn btn-ghost btn-sm">Ver todas las posturas del día →</a>
+            </div>
+          </div>
+
+          <!-- Actividad reciente -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Actividad reciente</span>
+              <a href="auditoria.html" class="btn btn-ghost btn-sm">Ver historial completo →</a>
+            </div>
+            <div class="card-body" id="activity-list"></div>
+          </div>
+
+          <!-- Estado de la flota -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Estado de la flota</span>
+              <a href="flota.html" class="btn btn-ghost btn-sm">Ver flota completa →</a>
+            </div>
+            <div class="card-body">
+              <div class="fleet-bar" id="fleet-bar" style="margin-bottom:var(--sp-4)"></div>
+              <div class="fleet-legend" id="fleet-legend"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Columna derecha: alertas + llegadas -->
+        <div class="flex-col gap-5">
+
+          <!-- Alertas críticas -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Alertas críticas</span>
+              <button class="btn btn-ghost btn-sm">Ver todas →</button>
+            </div>
+            <div class="card-body" id="alertas-list"></div>
+          </div>
+
+          <!-- Próximas llegadas -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Próximas llegadas a Santiago</span>
+            </div>
+            <div class="card-body" id="llegadas-list"></div>
+          </div>
+
+          <!-- Contacto rápido -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">Acceso rápido</span></div>
+            <div class="card-body flex-col gap-3">
+              <a href="corrida.html" class="btn btn-secondary w-full">🔄 Crear Corrida</a>
+              <a href="incidente.html" class="btn btn-secondary w-full">⚠️ Registrar Incidente</a>
+              <a href="mantenimiento.html" class="btn btn-secondary w-full">🔧 Nueva Orden Mantención</a>
+              <div class="divider"></div>
+              <button class="btn btn-gold w-full" style="display:flex;align-items:center;justify-content:center;gap:8px">
+                <span style="font-size:16px">💬</span> WhatsApp Operaciones
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('dashboard');
+    document.getElementById('topbar-mount').innerHTML  = renderTopbar('Operaciones', 'Vista general');
+
+    /* ── Posturas table ───────────────────────────────────── */
+    function renderPosturas() {
+      const txt    = document.getElementById('buscar-pos').value.toLowerCase();
+      const estado = document.getElementById('fil-estado').value;
+
+      const filtered = DATA.posturas.filter(p =>
+        (!txt || p.codigo.toLowerCase().includes(txt) || p.origen.toLowerCase().includes(txt) || p.destino.toLowerCase().includes(txt) || (p.bus||'').toLowerCase().includes(txt)) &&
+        (!estado || p.estado === estado)
+      );
+
+      document.getElementById('posturas-count').textContent =
+        `Mostrando ${filtered.length} de ${DATA.posturas.length} posturas`;
+
+      const tbody = document.getElementById('posturas-tbody');
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:var(--sp-8)"><div class="empty-icon">📋</div><div class="empty-title">Sin posturas</div><div class="empty-sub">Cambia los filtros</div></div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(p => {
+        const busCell = p.bus
+          ? `<div><div class="td-bus-num">${p.bus}</div><div class="td-bus-plate">${p.patente} · ${p.modelo}</div></div>`
+          : `<div class="no-bus" style="margin-left:8px">Sin asignar</div>`;
+
+        const crewCell = p.crew && p.crew.length
+          ? crewAvatarsHtml(p.crew)
+          : `<div class="td-no-crew"><span style="font-size:16px">👤</span> Sin tripulación</div>`;
+
+        const prioTag = p.prioridad
+          ? `<span class="badge gold" style="font-size:10px;padding:2px 6px;margin-left:6px">⛏️ Minero</span>` : '';
+
+        return `
+        <tr class="clickable" onclick="window.location='postura.html'">
+          <td><span class="td-hora">${p.hora}</span></td>
+          <td>
+            <div class="td-ruta-main">${p.origen} → ${p.destino} ${prioTag}</div>
+            <div class="td-ruta-sub">${SERVICIO_LABEL[p.servicio] || p.servicio}</div>
+          </td>
+          <td>${busCell}</td>
+          <td>${crewCell}</td>
+          <td>${renderBadgePostura(p.estado)}</td>
+          <td>
+            <div class="postura-row-actions">
+              <button class="btn-icon" onclick="event.stopPropagation();toggleMenu(${p.id})">⋮</button>
+              <div class="actions-menu" id="menu-${p.id}">
+                <div class="actions-menu-item" onclick="window.location='postura.html'">📋 Ver detalle</div>
+                <div class="actions-menu-item" onclick="window.location='conductor.html'">👥 Asignar tripulación</div>
+                <div class="actions-menu-item" onclick="window.location='corrida.html'">🔄 Crear corrida</div>
+                <div class="actions-menu-item danger" onclick="alert('Confirmación requerida')">✕ Cancelar postura</div>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function toggleMenu(id) {
+      document.querySelectorAll('.actions-menu').forEach(m => {
+        if (m.id !== `menu-${id}`) m.classList.remove('open');
+      });
+      document.getElementById(`menu-${id}`).classList.toggle('open');
+    }
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.actions-menu').forEach(m => m.classList.remove('open'));
+    });
+
+    /* ── Alertas ──────────────────────────────────────────── */
+    function renderAlertas() {
+      const alertas = [
+        { tipo:'danger', icon:'✕', text:'Postura 12:30 sin bus asignado', sub:'Semi Cama — Santiago → Antofagasta', tiempo:'Hace 5 min', href:'postura.html' },
+        { tipo:'warn',   icon:'⚠', text:'BUS 105 en mantenimiento',       sub:'Afecta postura 11:00',               tiempo:'Hace 15 min', href:'mantenimiento.html' },
+        { tipo:'warn',   icon:'⚠', text:'Falta conductor relevo',         sub:'Postura 14:00 — BUS 156',            tiempo:'Hace 32 min', href:'conductor.html' },
+      ];
+      const el = document.getElementById('alertas-list');
+      el.innerHTML = alertas.map(a => `
+        <div class="alert-item" onclick="window.location='${a.href}'" style="cursor:pointer">
+          <div class="alert-item-icon ${a.tipo}">${a.icon}</div>
+          <div style="flex:1">
+            <div class="alert-item-text">${a.text}</div>
+            <div class="alert-item-sub">${a.sub}</div>
+          </div>
+          <div class="alert-item-time">${a.tiempo}</div>
+        </div>`).join('');
+    }
+
+    /* ── Llegadas ─────────────────────────────────────────── */
+    function renderLlegadas() {
+      const llegadas = [
+        { bus:'BUS 123', hora:'Llegada est. 07:45', estado:'ok',     etiqueta:'A tiempo' },
+        { bus:'BUS 145', hora:'Llegada est. 08:35', estado:'ok',     etiqueta:'A tiempo' },
+        { bus:'BUS 156', hora:'Llegada est. 10:10', estado:'danger', etiqueta:'Retrasado' },
+      ];
+      const el = document.getElementById('llegadas-list');
+      el.innerHTML = llegadas.map(l => `
+        <div class="llegada-item">
+          <span style="font-size:18px">🚌</span>
+          <div style="flex:1">
+            <div class="llegada-bus">${l.bus}</div>
+            <div class="llegada-hora">${l.hora}</div>
+          </div>
+          <span class="badge ${l.estado}">${l.etiqueta}</span>
+        </div>`).join('');
+    }
+
+    /* ── Actividad reciente ───────────────────────────────── */
+    function renderActividad() {
+      const acts = DATA.auditoria.slice(0, 5).map(a => ({
+        color: a.tipo === 'ok' ? 'var(--ok)' : a.tipo === 'warn' ? 'var(--warn)' : a.tipo === 'danger' ? 'var(--danger)' : 'var(--info)',
+        text: a.detalle, hora: `Hace ${Math.floor(Math.random()*30+1)} min`, usuario: a.usuario,
+      }));
+      const el = document.getElementById('activity-list');
+      el.innerHTML = acts.map(a => `
+        <div class="activity-item">
+          <div class="activity-dot" style="background:${a.color}"></div>
+          <div class="activity-text"><strong>${a.usuario}</strong> — ${a.text}</div>
+          <div class="activity-time">${a.hora}</div>
+        </div>`).join('');
+    }
+
+    /* ── Fleet Status Bar ─────────────────────────────────── */
+    function renderFleet() {
+      const counts = { disp:0, svc:0, mant:0, fuera:0 };
+      DATA.buses.forEach(b => {
+        if (b.estado === 'DISPONIBLE' || b.estado === 'ASIGNADO') counts.disp++;
+        else if (b.estado === 'EN_SERVICIO') counts.svc++;
+        else if (b.estado === 'MANTENIMIENTO') counts.mant++;
+        else counts.fuera++;
+      });
+      const total = DATA.buses.length;
+
+      document.getElementById('fleet-bar').innerHTML = `
+        <div class="fleet-bar-seg" style="flex:${counts.disp};background:var(--ok)"></div>
+        <div class="fleet-bar-seg" style="flex:${counts.svc};background:var(--info)"></div>
+        <div class="fleet-bar-seg" style="flex:${counts.mant};background:var(--warn)"></div>
+        <div class="fleet-bar-seg" style="flex:${counts.fuera};background:var(--danger)"></div>
+      `;
+
+      document.getElementById('fleet-legend').innerHTML = [
+        { color:'var(--ok)',     label:'Disponible',   n:counts.disp },
+        { color:'var(--info)',   label:'En servicio',  n:counts.svc  },
+        { color:'var(--warn)',   label:'Mantenimiento',n:counts.mant },
+        { color:'var(--danger)', label:'Fuera servicio',n:counts.fuera},
+      ].map(l => `
+        <div class="fleet-legend-item">
+          <div class="fleet-legend-dot" style="background:${l.color}"></div>
+          ${l.label} <strong>${l.n} (${Math.round(l.n/total*100)}%)</strong>
+        </div>`).join('');
+    }
+
+    /* ── INIT ─────────────────────────────────────────────── */
+    renderPosturas();
+    renderAlertas();
+    renderLlegadas();
+    renderActividad();
+    renderFleet();
+  </script>
+</body>
+</html>

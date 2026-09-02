@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mantenimiento — PlussChile SGO</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .kanban-board { display: grid; grid-template-columns: repeat(4,1fr); gap: var(--sp-4); align-items: start; }
+    .kanban-col { background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--r-lg); }
+    .kanban-col-head { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .kanban-col-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-secondary); }
+    .kanban-col-cnt { width: 20px; height: 20px; border-radius: var(--r-full); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+    .kanban-items { padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); min-height: 60px; }
+    .k-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--r-md); cursor: pointer; overflow: hidden; transition: all var(--t-fast); border-left: 3px solid var(--border); }
+    .k-card:hover { box-shadow: var(--shadow-sm); border-color: var(--border-strong); }
+    .k-card.alta   { border-left-color: var(--danger); }
+    .k-card.media  { border-left-color: var(--warn); }
+    .k-card.baja   { border-left-color: var(--ok); }
+    .k-card-top { padding: var(--sp-4); border-bottom: 1px solid var(--border); }
+    .k-card-body { padding: var(--sp-3) var(--sp-4); }
+    .k-card-foot { padding: var(--sp-3) var(--sp-4); background: var(--bg-muted); display: flex; gap: var(--sp-2); }
+    .k-bus { font-size: 18px; font-weight: 900; letter-spacing: -0.3px; }
+    .k-issue { font-size: 12px; color: var(--text-secondary); line-height: 1.4; margin-top: var(--sp-1); }
+    .k-meta { font-size: 11px; color: var(--text-muted); margin-bottom: var(--sp-1); display: flex; align-items: center; gap: 6px; }
+
+    /* Timeline */
+    .tl-step { padding: var(--sp-4) 0; border-bottom: 1px solid var(--border); display: flex; gap: var(--sp-3); }
+    .tl-step:last-child { border-bottom: none; }
+    .tl-dot { width: 28px; height: 28px; border-radius: var(--r-full); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+    .tl-dot.done { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
+    .tl-dot.current { background: var(--gold-pale); border-color: var(--gold-border); color: var(--gold); }
+    .tl-dot.pending { background: var(--bg-muted); color: var(--text-muted); }
+    .tl-title { font-size: 13px; font-weight: 600; }
+    .tl-meta  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    @media (max-width: 1000px) { .kanban-board { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 600px)  { .kanban-board { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div id="topbar-mount"></div>
+    <div class="page-content fade-in">
+
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h1 style="font-size:18px;font-weight:800;margin-bottom:2px">Mantenimiento</h1>
+          <div class="fs-12 text-muted">Bandeja de fallas y órdenes de trabajo</div>
+        </div>
+        <div class="flex gap-3">
+          <div class="search-box" style="width:160px"><span class="search-icon">🔍</span><input type="text" placeholder="Buscar bus..."></div>
+          <button class="btn btn-primary" onclick="showToast('Formulario de nueva orden — Próximamente','gold')">+ Nueva orden</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row mb-5">
+        <div class="kpi-card"><div class="kpi-icon-wrap warn">⚙️</div><div class="kpi-body"><div class="kpi-value" style="color:var(--warn-text)">1</div><div class="kpi-label">En proceso</div><div class="kpi-sub">Orden activa</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap danger">📥</div><div class="kpi-body"><div class="kpi-value" style="color:var(--danger-text)">1</div><div class="kpi-label">Sin asignar</div><div class="kpi-sub">Requiere mecánico</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap info">⏳</div><div class="kpi-body"><div class="kpi-value">1</div><div class="kpi-label">Pendiente</div><div class="kpi-sub">En espera de inicio</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap ok">✓</div><div class="kpi-body"><div class="kpi-value" style="color:var(--ok-text)">1</div><div class="kpi-label">Completados hoy</div><div class="kpi-sub">Bus liberado</div></div></div>
+      </div>
+
+      <!-- Kanban -->
+      <div class="kanban-board">
+
+        <!-- Sin asignar -->
+        <div class="kanban-col">
+          <div class="kanban-col-head">
+            <span class="kanban-col-title">Sin asignar</span>
+            <span class="kanban-col-cnt" style="background:var(--danger-bg);color:var(--danger-text)">1</span>
+          </div>
+          <div class="kanban-items">
+            <div class="k-card media" onclick="openOrden(4)">
+              <div class="k-card-top">
+                <div class="flex items-center justify-between"><div class="k-bus">BUS 106</div><span class="badge warn">Media</span></div>
+                <div class="k-issue">Ruido extraño en suspensión delantera — Detectado en ruta · Incidente INC-2</div>
+              </div>
+              <div class="k-card-body">
+                <div class="k-meta">🔩 Suspensión · Correctivo</div>
+                <div class="k-meta">⏰ Ingresó: 09:15 hoy</div>
+                <div class="k-meta" style="color:var(--danger-text)">👤 Sin mecánico asignado</div>
+              </div>
+              <div class="k-card-foot">
+                <button class="btn btn-sm btn-primary w-full">Asignar mecánico</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pendiente -->
+        <div class="kanban-col">
+          <div class="kanban-col-head">
+            <span class="kanban-col-title">Pendiente</span>
+            <span class="kanban-col-cnt" style="background:var(--warn-bg);color:var(--warn-text)">1</span>
+          </div>
+          <div class="kanban-items">
+            <div class="k-card alta" onclick="openOrden(2)">
+              <div class="k-card-top">
+                <div class="flex items-center justify-between"><div class="k-bus">BUS 108</div><span class="badge danger">Alta</span></div>
+                <div class="k-issue">Motor con sobrecalentamiento — Requiere diagnóstico urgente.</div>
+              </div>
+              <div class="k-card-body">
+                <div class="k-meta">🔩 Motor · Correctivo</div>
+                <div class="k-meta">👤 M. Castro · 🏗️ Pozo P-01</div>
+                <div class="k-meta" style="color:var(--warn-text)">⏰ Esperando inicio</div>
+              </div>
+              <div class="k-card-foot">
+                <button class="btn btn-sm btn-secondary w-full">Iniciar trabajo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- En proceso -->
+        <div class="kanban-col">
+          <div class="kanban-col-head">
+            <span class="kanban-col-title">En proceso</span>
+            <span class="kanban-col-cnt" style="background:var(--info-bg);color:var(--info-text)">1</span>
+          </div>
+          <div class="kanban-items">
+            <div class="k-card alta" onclick="openOrden(1)">
+              <div class="k-card-top">
+                <div class="flex items-center justify-between"><div class="k-bus">BUS 104</div><span class="badge danger">Alta</span></div>
+                <div class="k-issue">Falla en sistema de frenos ABS — Bus en Pozo P-02.</div>
+              </div>
+              <div class="k-card-body">
+                <div class="k-meta">🔩 Frenos · Correctivo</div>
+                <div class="k-meta">👤 R. Herrera · 🏗️ Pozo P-02</div>
+                <div class="k-meta" style="color:var(--ok-text)">⏰ Inicio: 06:20 · Est: 14:00</div>
+              </div>
+              <div class="k-card-foot">
+                <button class="btn btn-sm btn-ok flex-1" onclick="event.stopPropagation();liberar()">✓ Liberar bus</button>
+                <button class="btn-icon" onclick="event.stopPropagation()">📋</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completado -->
+        <div class="kanban-col">
+          <div class="kanban-col-head">
+            <span class="kanban-col-title">Completado</span>
+            <span class="kanban-col-cnt" style="background:var(--ok-bg);color:var(--ok-text)">1</span>
+          </div>
+          <div class="kanban-items">
+            <div class="k-card baja" onclick="openOrden(3)" style="opacity:0.7">
+              <div class="k-card-top">
+                <div class="flex items-center justify-between"><div class="k-bus">BUS 103</div><span class="badge ok">Media</span></div>
+                <div class="k-issue">Cambio aceite y filtros preventivo 210K km. Bus liberado 07:00.</div>
+              </div>
+              <div class="k-card-body">
+                <div class="k-meta">🔩 General · Preventivo</div>
+                <div class="k-meta">👤 F. Rojas · 🏗️ Pozo P-03</div>
+                <div class="k-meta" style="color:var(--ok-text)">✓ Liberado 07:00</div>
+              </div>
+              <div class="k-card-foot">
+                <span class="badge ok" style="width:100%;justify-content:center">✓ Bus liberado</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Overlay + slide panel -->
+  <div class="overlay" id="overlay" onclick="closeOrden()"></div>
+  <div class="slide-panel" id="panel">
+    <div class="slide-header">
+      <div>
+        <div class="fs-11 text-muted mb-1">Orden de mantenimiento</div>
+        <div class="fw-800" style="font-size:16px" id="panel-title">—</div>
+      </div>
+      <div class="flex gap-2 ml-auto">
+        <button class="btn btn-sm btn-ok" onclick="liberar()">✓ Liberar bus</button>
+        <button class="btn-icon" onclick="closeOrden()">✕</button>
+      </div>
+    </div>
+    <div class="slide-body" id="panel-body"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('mantenimiento');
+    document.getElementById('topbar-mount').innerHTML  = renderTopbar('Mantenimiento','Bandeja de órdenes · 4 activas');
+
+    function openOrden(id) {
+      const orden = DATA.ordenes.find(o => o.id === id);
+      if (!orden) return;
+      const bus = getBus(orden.bus_id);
+      const est = ESTADO_ORDEN[orden.estado] || {};
+
+      document.getElementById('panel-title').textContent = `Orden #${orden.id} · ${bus?.numero}`;
+
+      document.getElementById('panel-body').innerHTML = `
+        <div class="flex items-center gap-4 mb-5 p-4 rounded" style="background:var(--bg-muted);border:1px solid var(--border);border-radius:var(--r-md)">
+          <div style="font-size:32px">🚌</div>
+          <div style="flex:1">
+            <div style="font-size:20px;font-weight:900">${bus?.numero}</div>
+            <div class="fs-12 text-muted" style="font-family:monospace">${bus?.patente} · ${bus?.km?.toLocaleString()} km</div>
+          </div>
+          <span class="badge ${est.cls}">${est.label}</span>
+        </div>
+
+        <div class="mb-5">
+          <div class="section-label mb-2">Problema reportado</div>
+          <div style="padding:var(--sp-4);background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:var(--r-md);font-size:13px">${orden.problema}</div>
+        </div>
+
+        <div class="grid-2 gap-4 mb-5">
+          <div class="form-group"><div class="form-label">Mecánico</div><div class="fw-600">${orden.mecanico||'<span class="text-danger">Sin asignar</span>'}</div></div>
+          <div class="form-group"><div class="form-label">Especialidad</div><div class="fw-600">${orden.especialidad}</div></div>
+          <div class="form-group"><div class="form-label">Pozo</div><div class="fw-600">${orden.pozo||'—'}</div></div>
+          <div class="form-group"><div class="form-label">Tipo</div><div class="fw-600">${orden.tipo}</div></div>
+          <div class="form-group"><div class="form-label">Inicio</div><div class="fw-600 text-gold">${orden.inicio}</div></div>
+          <div class="form-group"><div class="form-label">Est. finalización</div><div class="fw-600">${orden.estimado}</div></div>
+        </div>
+
+        <div class="divider mb-4"></div>
+        <div class="section-label mb-3">Progreso del trabajo</div>
+        <div class="tl-step"><div class="tl-dot done">✓</div><div><div class="tl-title">Ingreso de falla</div><div class="tl-meta">Recibido por J. Mecánicos · 05:46</div></div></div>
+        <div class="tl-step"><div class="tl-dot done">✓</div><div><div class="tl-title">Asignación de mecánico</div><div class="tl-meta">${orden.mecanico||'Pendiente'} · ${orden.inicio}</div></div></div>
+        <div class="tl-step"><div class="tl-dot ${orden.estado==='EN_PROCESO'?'current':orden.estado==='COMPLETADO'?'done':'pending'}">${orden.estado==='EN_PROCESO'?'⚙':orden.estado==='COMPLETADO'?'✓':'·'}</div><div><div class="tl-title">Reparación en curso</div><div class="tl-meta">Est. finalización: ${orden.estimado}</div></div></div>
+        <div class="tl-step"><div class="tl-dot ${orden.estado==='COMPLETADO'?'done':'pending'}">${orden.estado==='COMPLETADO'?'✓':'·'}</div><div><div class="tl-title">Prueba de ruta</div><div class="tl-meta">Pendiente</div></div></div>
+        <div class="tl-step" style="border:none"><div class="tl-dot ${orden.estado==='COMPLETADO'?'done':'pending'}">${orden.estado==='COMPLETADO'?'✓':'·'}</div><div><div class="tl-title">Liberación del bus</div><div class="tl-meta">Pendiente autorización J. Mecánicos</div></div></div>
+
+        <div class="flex gap-3 mt-5">
+          <button class="btn btn-secondary flex-1">📝 Agregar nota</button>
+          <button class="btn btn-ok flex-1" onclick="liberar()">✓ Liberar bus</button>
+        </div>
+      `;
+
+      document.getElementById('panel').classList.add('open');
+      document.getElementById('overlay').classList.add('open');
+    }
+
+    function closeOrden() {
+      document.getElementById('panel').classList.remove('open');
+      document.getElementById('overlay').classList.remove('open');
+    }
+
+    function liberar() {
+      closeOrden();
+      if (!confirm('¿Confirma liberar el bus para operaciones?')) return;
+      showToast('Bus BUS 104 liberado — Disponible para operaciones', 'ok');
+    }
+  </script>
+</body>
+</html>

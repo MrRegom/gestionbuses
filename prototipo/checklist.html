@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checklist Preventivo — PlussChile</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: var(--bg-muted); }
+    .sidebar { display: none !important; }
+    .main { margin-left: 0 !important; }
+
+    .mobile-header {
+      background: var(--navy); padding: var(--sp-4) var(--sp-5);
+      display: flex; align-items: center; gap: var(--sp-3); position: sticky; top: 0; z-index: 50;
+    }
+    .mobile-logo { width: 30px; height: 30px; background: var(--gold); border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #fff; flex-shrink: 0; }
+    .mobile-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .mobile-sub   { font-size: 10px; color: rgba(255,255,255,0.5); }
+    .header-right { margin-left: auto; }
+
+    /* Ring de progreso */
+    .ring-wrap { display: flex; flex-direction: column; align-items: center; padding: var(--sp-6); background: var(--bg-white); margin-bottom: var(--sp-4); }
+    .ring-svg { position: relative; width: 100px; height: 100px; }
+    .ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; color: var(--text-primary); }
+    .ring-label { font-size: 13px; font-weight: 600; margin-top: var(--sp-3); color: var(--text-secondary); }
+    .ring-counts { display: flex; gap: var(--sp-5); margin-top: var(--sp-3); }
+    .ring-cnt { text-align: center; }
+    .ring-cnt .n { font-size: 18px; font-weight: 800; }
+    .ring-cnt .l { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Mobile body */
+    .check-body { max-width: 460px; margin: 0 auto; padding: var(--sp-4); }
+
+    /* Categorías */
+    .cat-block { background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--sp-4); }
+    .cat-head { padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .cat-name { font-size: 13px; font-weight: 700; }
+    .cat-prog { font-size: 11px; color: var(--text-muted); }
+    .cat-body { padding: var(--sp-3) var(--sp-4); }
+
+    /* Item check */
+    .check-item { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+    .check-item:last-child { border-bottom: none; }
+    .check-label { flex: 1; font-size: 13px; color: var(--text-primary); }
+    .check-label.checked { color: var(--text-muted); text-decoration: line-through; }
+    .check-label.fail { color: var(--danger-text); font-weight: 600; }
+
+    /* Botones OK/Falla/NA */
+    .check-btns { display: flex; gap: 4px; }
+    .cb { width: 36px; height: 30px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-muted); font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: all var(--t-fast); }
+    .cb:hover { border-color: var(--border-strong); }
+    .cb.ok-sel   { background: var(--ok);     border-color: var(--ok);     color: #fff; }
+    .cb.fail-sel { background: var(--danger);  border-color: var(--danger);  color: #fff; }
+    .cb.na-sel   { background: var(--neutral); border-color: var(--neutral); color: #fff; }
+
+    /* Bottom bar */
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: var(--sp-4) var(--sp-5); background: var(--bg-white); border-top: 1px solid var(--border); display: flex; gap: var(--sp-3); box-shadow: 0 -4px 12px rgba(0,0,0,0.06); }
+  </style>
+</head>
+<body>
+  <main class="main">
+    <!-- Header -->
+    <div class="mobile-header">
+      <div class="mobile-logo">P+</div>
+      <div>
+        <div class="mobile-title">☑️ Checklist Preventivo</div>
+        <div class="mobile-sub">BUS 103 · Carlos Fuentes · 06:45</div>
+      </div>
+      <div class="header-right">
+        <span class="badge neutral" id="h-prog">0 / 30</span>
+      </div>
+    </div>
+
+    <div class="check-body" style="padding-bottom:90px">
+
+      <!-- Ring de progreso -->
+      <div class="ring-wrap">
+        <div class="ring-svg">
+          <svg viewBox="0 0 36 36" width="100" height="100">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--border)" stroke-width="2.5"/>
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--gold)" stroke-width="2.5"
+              stroke-dasharray="100 100" id="ring-dash" stroke-linecap="round"
+              transform="rotate(-90 18 18)" stroke-dashoffset="100"/>
+          </svg>
+          <div class="ring-pct" id="ring-pct">0%</div>
+        </div>
+        <div class="ring-label" id="ring-label">Inicio del checklist</div>
+        <div class="ring-counts">
+          <div class="ring-cnt"><div class="n text-ok" id="cnt-ok">0</div><div class="l">OK</div></div>
+          <div class="ring-cnt"><div class="n text-danger" id="cnt-fail">0</div><div class="l">Fallas</div></div>
+          <div class="ring-cnt"><div class="n text-muted" id="cnt-na">0</div><div class="l">N/A</div></div>
+        </div>
+      </div>
+
+      <!-- Alerta si hay fallas -->
+      <div id="fallas-alert" style="display:none;margin-bottom:var(--sp-4)">
+        <div class="notice danger">
+          <span class="notice-icon">⚠️</span>
+          <div class="notice-content">
+            <div class="notice-title" id="fallas-txt">Existen fallas detectadas</div>
+            <div class="notice-desc">Operaciones y Mantenimiento serán notificados al finalizar.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categorías -->
+      <div id="cats-container"></div>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <div class="flex-col" style="flex:1">
+        <div class="fs-11 text-muted">Progreso</div>
+        <div class="progress-track mt-1" style="height:6px"><div class="progress-fill gold" id="bot-bar" style="width:0%"></div></div>
+      </div>
+      <button class="btn btn-primary" style="min-width:140px" id="send-btn" onclick="enviar()">Finalizar checklist</button>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    let total = 0, ok = 0, fail = 0, na = 0;
+
+    function calcTot() {
+      const items = DATA.checklist_items;
+      let t = 0;
+      items.forEach(c => { t += c.items.length; });
+      return t;
+    }
+
+    function setItem(catI, itemI, estado) {
+      const el = document.getElementById(`item-${catI}-${itemI}`);
+      const prev = el.dataset.estado;
+
+      // Descontar anterior
+      if (prev === 'ok')   ok--;
+      if (prev === 'fail') fail--;
+      if (prev === 'na')   na--;
+
+      // Si mismo estado, toggle off
+      if (prev === estado) { el.dataset.estado = ''; updateUI(); updateBtns(catI,itemI,''); return; }
+
+      el.dataset.estado = estado;
+      if (estado === 'ok')   ok++;
+      if (estado === 'fail') fail++;
+      if (estado === 'na')   na++;
+      updateUI();
+      updateBtns(catI, itemI, estado);
+      updateCatHead(catI);
+    }
+
+    function updateBtns(ci, ii, estado) {
+      const wrap = document.getElementById(`btns-${ci}-${ii}`);
+      if (!wrap) return;
+      const lb = document.getElementById(`lbl-${ci}-${ii}`);
+      wrap.querySelector('.btn-ok').className   = `cb btn-ok ${estado==='ok'?'ok-sel':''}`;
+      wrap.querySelector('.btn-fail').className = `cb btn-fail ${estado==='fail'?'fail-sel':''}`;
+      wrap.querySelector('.btn-na').className   = `cb btn-na ${estado==='na'?'na-sel':''}`;
+      if (lb) { lb.className = `check-label ${estado==='ok'?'checked':estado==='fail'?'fail':''}`; }
+    }
+
+    function updateUI() {
+      const resp = ok + fail + na;
+      const pct = total ? Math.round(resp/total*100) : 0;
+      document.getElementById('ring-pct').textContent  = pct + '%';
+      document.getElementById('ring-label').textContent = resp < total ? `${resp} de ${total} respondidas` : '¡Checklist completo!';
+      document.getElementById('ring-dash').setAttribute('stroke-dashoffset', 100 - pct);
+      document.getElementById('cnt-ok').textContent   = ok;
+      document.getElementById('cnt-fail').textContent = fail;
+      document.getElementById('cnt-na').textContent   = na;
+      document.getElementById('h-prog').textContent   = `${resp} / ${total}`;
+      document.getElementById('bot-bar').style.width  = pct + '%';
+
+      document.getElementById('fallas-alert').style.display = fail > 0 ? 'block' : 'none';
+      if (fail > 0) document.getElementById('fallas-txt').textContent = `${fail} falla${fail>1?'s':''} detectada${fail>1?'s':''}`;
+
+      const btn = document.getElementById('send-btn');
+      btn.disabled = resp < total;
+      btn.style.opacity = resp < total ? '0.5' : '1';
+    }
+
+    function updateCatHead(ci) {
+      const cat = DATA.checklist_items[ci];
+      let filled = 0;
+      for (let j = 0; j < cat.items.length; j++) {
+        const el = document.getElementById(`item-${ci}-${j}`);
+        if (el && el.dataset.estado) filled++;
+      }
+      document.getElementById(`catprog-${ci}`).textContent = `${filled} / ${cat.items.length}`;
+    }
+
+    function render() {
+      total = calcTot();
+      const el = document.getElementById('cats-container');
+      el.innerHTML = DATA.checklist_items.map((cat, ci) => `
+        <div class="cat-block">
+          <div class="cat-head" onclick="toggleCat(${ci})">
+            <div class="cat-name">📋 ${cat.categoria}</div>
+            <div class="flex items-center gap-3">
+              <span class="cat-prog" id="catprog-${ci}">0 / ${cat.items.length}</span>
+              <span class="text-muted" id="cat-arrow-${ci}">▼</span>
+            </div>
+          </div>
+          <div class="cat-body" id="cat-body-${ci}">
+            ${cat.items.map((item, ii) => `
+              <div class="check-item">
+                <div class="check-label" id="lbl-${ci}-${ii}" data-estado="" id2="item-${ci}-${ii}">${item}</div>
+                <span id="item-${ci}-${ii}" data-estado=""></span>
+                <div class="check-btns" id="btns-${ci}-${ii}">
+                  <button class="cb btn-ok" onclick="setItem(${ci},${ii},'ok')">OK</button>
+                  <button class="cb btn-fail" onclick="setItem(${ci},${ii},'fail')">❌</button>
+                  <button class="cb btn-na" onclick="setItem(${ci},${ii},'na')">N/A</button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('');
+
+      updateUI();
+    }
+
+    function toggleCat(ci) {
+      const body = document.getElementById(`cat-body-${ci}`);
+      const arrow = document.getElementById(`cat-arrow-${ci}`);
+      if (body.style.display === 'none') { body.style.display = 'block'; arrow.textContent = '▼'; }
+      else { body.style.display = 'none'; arrow.textContent = '►'; }
+    }
+
+    function enviar() {
+      if (fail > 0) {
+        showToast(`⚠️ ${fail} falla${fail>1?'s':''} notificada${fail>1?'s':''} a Mantenimiento`, 'warn');
+        setTimeout(() => showToast('Checklist completado y registrado', 'ok'), 1000);
+      } else {
+        showToast('✅ Checklist completado sin fallas', 'ok');
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

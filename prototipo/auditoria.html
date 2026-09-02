@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoría — PlussChile SGO</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .audit-layout { display: grid; grid-template-columns: 1fr 280px; gap: var(--sp-5); }
+    @media (max-width: 1000px) { .audit-layout { grid-template-columns: 1fr; } }
+    .diff-row { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: 11px; font-family: monospace; padding: 2px 8px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--r-sm); margin-top: var(--sp-2); }
+    .diff-old { color: var(--danger-text); }
+    .diff-new { color: var(--ok-text); }
+    .diff-arrow { color: var(--text-muted); }
+    .u-bar { margin-bottom: var(--sp-4); }
+    .u-bar-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+    .u-bar-name { font-weight: 600; }
+    .u-bar-cnt { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div id="topbar-mount"></div>
+    <div class="page-content fade-in">
+
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h1 style="font-size:18px;font-weight:800;margin-bottom:2px">Auditoría</h1>
+          <div class="fs-12 text-muted">Trazabilidad completa · ¿Quién cambió qué y cuándo?</div>
+        </div>
+        <button class="btn btn-secondary">📥 Exportar</button>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row mb-5">
+        <div class="kpi-card"><div class="kpi-icon-wrap gold">📋</div><div class="kpi-body"><div class="kpi-value">8</div><div class="kpi-label">Eventos hoy</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap danger">🔴</div><div class="kpi-body"><div class="kpi-value" style="color:var(--danger-text)">2</div><div class="kpi-label">Críticos</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap warn">⚠</div><div class="kpi-body"><div class="kpi-value" style="color:var(--warn-text)">2</div><div class="kpi-label">Advertencias</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap ok">✓</div><div class="kpi-body"><div class="kpi-value" style="color:var(--ok-text)">4</div><div class="kpi-label">Confirmados</div></div></div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="flex items-center gap-3 flex-wrap mb-5">
+        <div class="search-box" style="width:240px">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Buscar acción, usuario, entidad..." id="buscar" oninput="renderAudit()">
+        </div>
+        <select class="form-input form-select" id="fil-tipo" style="width:160px" onchange="renderAudit()">
+          <option value="">Todos los tipos</option>
+          <option value="ok">✓ Confirmados</option>
+          <option value="warn">⚠ Advertencias</option>
+          <option value="danger">🔴 Críticos</option>
+        </select>
+        <input class="form-input" type="date" value="2026-09-01" style="width:160px">
+        <span class="badge neutral ml-auto" id="cnt">8 eventos</span>
+      </div>
+
+      <div class="audit-layout">
+
+        <!-- Log principal -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Log de eventos</span>
+            <span class="fs-12 text-muted">01/09/2026 · Todos los usuarios</span>
+          </div>
+          <div id="audit-log"></div>
+        </div>
+
+        <!-- Panel derecho -->
+        <div class="flex-col gap-5">
+
+          <!-- Usuarios activos -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">Usuarios activos</span></div>
+            <div class="card-body" id="usuarios-panel"></div>
+          </div>
+
+          <!-- Por tipo -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">Por tipo de evento</span></div>
+            <div class="card-body" id="tipos-panel"></div>
+          </div>
+
+          <!-- Nota legal -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">ℹ️ Sobre la auditoría</span></div>
+            <div class="card-body fs-12 text-secondary" style="line-height:1.7">
+              <p>Los registros de auditoría son <strong>inmutables</strong>. Todo cambio en posturas, buses, tripulación, corridas y mantenimiento queda registrado con:</p>
+              <ul style="margin-top:var(--sp-3);padding-left:var(--sp-5);display:flex;flex-direction:column;gap:4px">
+                <li>✓ Usuario responsable</li>
+                <li>✓ Fecha y hora exacta</li>
+                <li>✓ Valor anterior y nuevo</li>
+                <li>✓ Motivo cuando aplica</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('auditoria');
+    document.getElementById('topbar-mount').innerHTML  = renderTopbar('Auditoría','Trazabilidad completa del sistema');
+
+    const DIFFS = {
+      ASIGNACION_BUS:  { old:'Sin bus',        new:'BUS 110' },
+      CORRIDA_CREADA:  { old:'BUS 104',         new:'BUS 101' },
+      BUS_LIBERADO:    { old:'MANTENIMIENTO',   new:'DISPONIBLE' },
+    };
+    const ICONS = { ok:'✓', warn:'⚠', danger:'✕', info:'ℹ' };
+
+    function renderAudit() {
+      const txt  = document.getElementById('buscar').value.toLowerCase();
+      const tipo = document.getElementById('fil-tipo').value;
+
+      const items = DATA.auditoria.filter(a =>
+        (!txt  || a.accion.toLowerCase().includes(txt) || a.detalle.toLowerCase().includes(txt) || a.usuario.toLowerCase().includes(txt)) &&
+        (!tipo || a.tipo === tipo)
+      );
+
+      document.getElementById('cnt').textContent = `${items.length} evento${items.length!==1?'s':''}`;
+
+      const el = document.getElementById('audit-log');
+      if (!items.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Sin eventos</div><div class="empty-sub">Cambia los filtros</div></div>`;
+        return;
+      }
+
+      el.innerHTML = items.map(a => {
+        const diff = DIFFS[a.accion];
+        return `
+        <div class="audit-entry">
+          <div class="audit-dot ${a.tipo}">${ICONS[a.tipo]||'·'}</div>
+          <div class="audit-body">
+            <div class="audit-action">${a.accion.replace(/_/g,' ')}</div>
+            <div class="audit-entity">${a.entidad}</div>
+            <div class="audit-detail">${a.detalle}</div>
+            ${diff ? `<div class="diff-row"><span class="diff-old">− ${diff.old}</span><span class="diff-arrow">→</span><span class="diff-new">+ ${diff.new}</span></div>` : ''}
+            <div class="audit-meta"><span>🕐 ${a.hora}</span><span>·</span><span>👤 ${a.usuario}</span><span class="badge ${a.tipo} ml-auto" style="font-size:10px">${a.tipo.toUpperCase()}</span></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderUsuarios() {
+      const us = {};
+      DATA.auditoria.forEach(a => { us[a.usuario] = (us[a.usuario]||0)+1; });
+      const total = DATA.auditoria.length;
+      document.getElementById('usuarios-panel').innerHTML = Object.entries(us)
+        .sort((a,b)=>b[1]-a[1])
+        .map(([u,c]) => {
+          const pct = (c/total*100).toFixed(0);
+          return `<div class="u-bar"><div class="u-bar-head"><span class="u-bar-name">${u}</span><span class="u-bar-cnt">${c} eventos</span></div><div class="progress-track"><div class="progress-fill navy" style="width:${pct}%"></div></div></div>`;
+        }).join('');
+    }
+
+    function renderTipos() {
+      const tipos = { ok:0, warn:0, danger:0, info:0 };
+      DATA.auditoria.forEach(a => { if (tipos[a.tipo]!==undefined) tipos[a.tipo]++; });
+      const labels = { ok:'Confirmado', warn:'Advertencia', danger:'Crítico', info:'Informativo' };
+      document.getElementById('tipos-panel').innerHTML = Object.entries(tipos).map(([t,c]) => `
+        <div class="flex items-center justify-between mb-3">
+          <span class="badge ${t}">${ICONS[t]||'·'} ${labels[t]}</span>
+          <span style="font-size:18px;font-weight:800;color:${t==='ok'?'var(--ok-text)':t==='warn'?'var(--warn-text)':t==='danger'?'var(--danger-text)':'var(--info-text)'}">${c}</span>
+        </div>`).join('');
+    }
+
+    renderAudit(); renderUsuarios(); renderTipos();
+  </script>
+</body>
+</html>

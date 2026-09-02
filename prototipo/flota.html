@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flota — PlussChile SGO</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-4); }
+    .fleet-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; cursor: pointer; transition: all var(--t-fast); box-shadow: var(--shadow-xs); }
+    .fleet-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); transform: translateY(-1px); }
+    .fleet-card-top { padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border); }
+    .fleet-card-body { padding: var(--sp-3) var(--sp-5); }
+    .fleet-card-footer { padding: var(--sp-3) var(--sp-5); border-top: 1px solid var(--border); background: var(--bg-muted); display: flex; gap: var(--sp-2); }
+    .fleet-bus-num { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+    .fleet-bus-plate { font-size: 11px; color: var(--text-muted); font-family: monospace; letter-spacing: 0.5px; margin-top: 1px; }
+    .fleet-status-bar { height: 3px; margin-bottom: var(--sp-4); border-radius: var(--r-full); }
+    .fleet-stat { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: var(--sp-2); }
+    .fleet-stat .lbl { color: var(--text-muted); }
+    .fleet-stat .val { font-weight: 600; }
+    .filter-chips { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-5); }
+    .chip { padding: 5px 14px; border-radius: var(--r-full); font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--bg-white); color: var(--text-secondary); cursor: pointer; transition: all var(--t-fast); }
+    .chip:hover { border-color: var(--border-strong); }
+    .chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .toggle-view { display: flex; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+    .tv-btn { padding: 6px 14px; font-size: 12px; font-weight: 600; background: none; border: none; color: var(--text-muted); cursor: pointer; transition: all var(--t-fast); font-family: var(--font); }
+    .tv-btn.active { background: var(--bg-white); color: var(--text-primary); box-shadow: var(--shadow-xs); }
+  </style>
+</head>
+<body>
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div id="topbar-mount"></div>
+    <div class="page-content fade-in">
+
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h1 style="font-size:18px;font-weight:800;margin-bottom:2px">Flota</h1>
+          <div class="fs-12 text-muted">Estado de todas las máquinas · 10 buses</div>
+        </div>
+        <div class="flex gap-3">
+          <div class="toggle-view">
+            <button class="tv-btn active" onclick="setView('cards',this)">⊞ Tarjetas</button>
+            <button class="tv-btn" onclick="setView('table',this)">≡ Tabla</button>
+          </div>
+          <div class="search-box" style="width:180px">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Buscar bus..." id="buscar" oninput="render()">
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="kpi-row mb-5">
+        <div class="kpi-card"><div class="kpi-icon-wrap neutral">🚌</div><div class="kpi-body"><div class="kpi-value">10</div><div class="kpi-label">Total flota</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap ok">🟢</div><div class="kpi-body"><div class="kpi-value" style="color:var(--ok-text)">4</div><div class="kpi-label">Disponibles</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap info">🔵</div><div class="kpi-body"><div class="kpi-value">3</div><div class="kpi-label">En servicio</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap warn">🔧</div><div class="kpi-body"><div class="kpi-value" style="color:var(--warn-text)">2</div><div class="kpi-label">Mantenimiento</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon-wrap danger">⛔</div><div class="kpi-body"><div class="kpi-value" style="color:var(--danger-text)">1</div><div class="kpi-label">Fuera servicio</div></div></div>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="filter-chips">
+        <div class="chip active" onclick="filtrar('',this)">Todos</div>
+        <div class="chip" onclick="filtrar('DISPONIBLE',this)">🟢 Disponible</div>
+        <div class="chip" onclick="filtrar('EN_SERVICIO',this)">🔵 En servicio</div>
+        <div class="chip" onclick="filtrar('MANTENIMIENTO',this)">🔧 Mantenimiento</div>
+        <div class="chip" onclick="filtrar('FUERA_SERVICIO',this)">⛔ Fuera servicio</div>
+      </div>
+
+      <!-- Views -->
+      <div id="view-cards">
+        <div class="fleet-grid" id="fleet-cards"></div>
+      </div>
+
+      <div id="view-table" style="display:none">
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>N° Bus</th><th>Patente</th><th>Modelo</th><th>Servicio</th><th>Estado</th><th>Km</th><th>Próxima postura</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="fleet-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('flota');
+    document.getElementById('topbar-mount').innerHTML  = renderTopbar('Flota','Estado de máquinas · Actualizado hace 2 min');
+
+    const SVC = { SC:'Semi Cama', SLC:'Salón Cama', CP:'Cama Premium', MIN:'Minero ⛏️' };
+    const SVC_CLR = { SC:'var(--info)', SLC:'#8B5CF6', CP:'var(--gold)', MIN:'var(--danger)' };
+    const STATE_CLR = { DISPONIBLE:'var(--ok)', ASIGNADO:'var(--info)', EN_SERVICIO:'var(--info)', MANTENIMIENTO:'var(--warn)', FUERA_SERVICIO:'var(--danger)' };
+
+    let filtroEstado = '';
+    let vistaActual  = 'cards';
+
+    function filtrar(estado, el) {
+      filtroEstado = estado;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      if (el) el.classList.add('active');
+      render();
+    }
+
+    function setView(v, btn) {
+      vistaActual = v;
+      document.querySelectorAll('.tv-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-cards').style.display = v === 'cards' ? 'block' : 'none';
+      document.getElementById('view-table').style.display = v === 'table'  ? 'block' : 'none';
+      render();
+    }
+
+    function getBuses() {
+      const txt = document.getElementById('buscar').value.toLowerCase();
+      return DATA.buses.filter(b =>
+        (!filtroEstado || b.estado === filtroEstado) &&
+        (!txt || b.numero.toLowerCase().includes(txt) || b.patente.toLowerCase().includes(txt))
+      );
+    }
+
+    function render() {
+      if (vistaActual === 'cards') renderCards(getBuses());
+      else renderTable(getBuses());
+    }
+
+    function renderCards(buses) {
+      const el = document.getElementById('fleet-cards');
+      if (!buses.length) { el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🚌</div><div class="empty-title">Sin buses</div><div class="empty-sub">Cambia los filtros</div></div>`; return; }
+      el.innerHTML = buses.map(b => {
+        const est = ESTADO_BUS[b.estado] || {};
+        const stClr = STATE_CLR[b.estado] || '#9CA3AF';
+        const kmPct = Math.min((b.km / 300000) * 100, 100);
+        const kmCls = b.km > 200000 ? 'danger' : b.km > 120000 ? 'warn' : 'ok';
+
+        return `
+        <div class="fleet-card" onclick="window.location='mantenimiento.html'">
+          <div class="fleet-status-bar" style="background:${stClr}"></div>
+          <div class="fleet-card-top">
+            <div class="flex items-center justify-between mb-1">
+              <div><div class="fleet-bus-num">${b.numero}</div><div class="fleet-bus-plate">${b.patente}</div></div>
+              <span class="badge ${est.cls}">${est.label}</span>
+            </div>
+            <div class="mt-3">
+              <div class="flex items-center justify-between fs-11 text-muted mb-1"><span>Kilometraje</span><span class="fw-600">${b.km.toLocaleString()} km</span></div>
+              <div class="progress-track"><div class="progress-fill ${kmCls}" style="width:${kmPct}%"></div></div>
+            </div>
+          </div>
+          <div class="fleet-card-body">
+            <div class="fleet-stat"><span class="lbl">Servicio</span><span class="val" style="color:${SVC_CLR[b.servicio]}">${SVC[b.servicio]||b.servicio}</span></div>
+            <div class="fleet-stat"><span class="lbl">Próxima postura</span><span class="val" style="color:var(--gold)">${b.proxima_postura}</span></div>
+            ${b.pozo ? `<div class="fleet-stat"><span class="lbl">Pozo</span><span class="badge warn">${b.pozo}</span></div>` : ''}
+          </div>
+          <div class="fleet-card-footer">
+            <a href="mantenimiento.html" class="btn btn-ghost btn-sm flex-1">🔧 Mantención</a>
+            <button class="btn btn-secondary btn-sm flex-1">📋 Historial</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderTable(buses) {
+      document.getElementById('fleet-tbody').innerHTML = buses.map(b => {
+        const est = ESTADO_BUS[b.estado] || {};
+        return `<tr class="clickable">
+          <td><span class="fw-700 fs-13">${b.numero}</span></td>
+          <td class="text-muted" style="font-family:monospace">${b.patente}</td>
+          <td class="text-secondary">${b.modelo}</td>
+          <td><span style="color:${SVC_CLR[b.servicio]};font-weight:600">${SVC[b.servicio]||b.servicio}</span></td>
+          <td><span class="badge ${est.cls}">${est.label}</span></td>
+          <td class="text-secondary">${b.km.toLocaleString()} km</td>
+          <td style="color:var(--gold);font-weight:600">${b.proxima_postura}</td>
+          <td><a href="mantenimiento.html" class="btn btn-ghost btn-sm">🔧</a></td>
+        </tr>`;
+      }).join('');
+    }
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incidente en Ruta — PlussChile</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: var(--bg-muted); }
+    .sidebar { display: none !important; }
+    .main { margin-left: 0 !important; }
+
+    .mobile-header {
+      background: var(--navy);
+      padding: var(--sp-4) var(--sp-5);
+      display: flex; align-items: center; gap: var(--sp-3);
+    }
+    .mobile-logo { width: 32px; height: 32px; background: var(--gold); border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #fff; flex-shrink: 0; }
+    .mobile-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .mobile-sub   { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+    .mobile-body { max-width: 460px; margin: 0 auto; padding: var(--sp-5); }
+
+    .step-header { margin-bottom: var(--sp-5); }
+    .step-title { font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+    .step-sub   { font-size: 13px; color: var(--text-muted); }
+
+    /* Severity cards */
+    .sev-row { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--sp-3); margin-bottom: var(--sp-5); }
+    .sev-card { padding: var(--sp-5) var(--sp-3); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-white); text-align: center; cursor: pointer; transition: all var(--t-fast); }
+    .sev-card:hover { border-color: var(--border-strong); }
+    .sev-card.sel.baja  { border-color: var(--ok);     background: var(--ok-bg); }
+    .sev-card.sel.media { border-color: var(--warn);   background: var(--warn-bg); }
+    .sev-card.sel.alta  { border-color: var(--danger); background: var(--danger-bg); }
+    .sev-icon { font-size: 28px; display: block; margin-bottom: var(--sp-2); }
+    .sev-label { font-size: 13px; font-weight: 700; }
+    .sev-desc  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* Yes/No */
+    .yn-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+    .yn-btn { padding: var(--sp-6) var(--sp-4); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-white); text-align: center; cursor: pointer; transition: all var(--t-fast); }
+    .yn-btn:hover { border-color: var(--border-strong); }
+    .yn-btn.sel.si  { border-color: var(--ok);     background: var(--ok-bg); }
+    .yn-btn.sel.no  { border-color: var(--danger); background: var(--danger-bg); }
+    .yn-icon  { font-size: 32px; display: block; margin-bottom: var(--sp-2); }
+    .yn-label { font-size: 14px; font-weight: 700; }
+
+    /* Photo area */
+    .photo-area { border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: var(--sp-8) var(--sp-5); text-align: center; cursor: pointer; transition: all var(--t-fast); margin-bottom: var(--sp-5); }
+    .photo-area:hover { border-color: var(--gold); background: var(--gold-pale); }
+    .photo-area-icon { font-size: 32px; display: block; margin-bottom: var(--sp-3); opacity: 0.4; }
+
+    /* Summary */
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .summary-table td { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+    .summary-table td:first-child { color: var(--text-muted); font-weight: 600; width: 130px; }
+
+    /* Success */
+    .success-screen { display: none; text-align: center; padding: var(--sp-10) var(--sp-4); }
+    .success-screen.show { display: block; animation: fadeIn 0.4s both; }
+
+    .step-nav { display: flex; gap: var(--sp-3); margin-top: var(--sp-5); }
+  </style>
+</head>
+<body>
+  <main class="main">
+    <!-- Mobile header -->
+    <div class="mobile-header">
+      <div class="mobile-logo">P+</div>
+      <div>
+        <div class="mobile-title">⚠️ Incidente en Ruta</div>
+        <div class="mobile-sub">PlussChile · Conductor: Carlos Fuentes · BUS 106</div>
+      </div>
+    </div>
+
+    <div class="mobile-body">
+      <!-- Progress dots -->
+      <div class="step-dots mt-5" id="dots">
+        <div class="step-dot active" id="dot-0"></div>
+        <div class="step-dot" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+        <div class="step-dot" id="dot-4"></div>
+      </div>
+
+      <!-- Step 0 -->
+      <div class="step-panel active" id="step-0">
+        <div class="step-header">
+          <div class="step-title">¿Qué bus y postura?</div>
+          <div class="step-sub">Confirme los datos del servicio actual</div>
+        </div>
+        <div class="form-group mb-4">
+          <label class="form-label">Bus</label>
+          <select class="form-input form-select">
+            <option value="6" selected>BUS 106 · BCLK50 (Mi bus)</option>
+          </select>
+        </div>
+        <div class="form-group mb-4">
+          <label class="form-label">Postura en curso</label>
+          <select class="form-input form-select">
+            <option selected>POS-001 · 06:00 · Santiago → Antofagasta ⛏️</option>
+          </select>
+        </div>
+        <div class="form-group mb-5">
+          <label class="form-label">Ubicación aproximada</label>
+          <input class="form-input" type="text" id="ubicacion" placeholder="Ej: Km 247 Ruta 5 Norte, antes de Los Vilos">
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-primary w-full btn-lg" onclick="next(1)">Continuar →</button>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="step-panel" id="step-1">
+        <div class="step-header">
+          <div class="step-title">¿Qué pasó?</div>
+          <div class="step-sub">Seleccione el tipo y gravedad</div>
+        </div>
+        <div class="form-group mb-4">
+          <label class="form-label">Tipo de incidente</label>
+          <select class="form-input form-select" id="tipo-inc">
+            <option value="">Seleccionar tipo...</option>
+            <option value="FALLA_MECANICA">🔧 Falla mecánica</option>
+            <option value="FALLA_ELECTRICA">⚡ Falla eléctrica</option>
+            <option value="NEUMATICO">⚙️ Problema neumático</option>
+            <option value="ACCIDENTE">🚨 Accidente</option>
+            <option value="PASAJERO">👤 Problema con pasajero</option>
+            <option value="OTRO">📋 Otro</option>
+          </select>
+        </div>
+        <div class="form-label mb-3">Gravedad</div>
+        <div class="sev-row">
+          <div class="sev-card" onclick="selSev('baja',this)"><span class="sev-icon">🟢</span><div class="sev-label">Baja</div><div class="sev-desc">Puede continuar</div></div>
+          <div class="sev-card" onclick="selSev('media',this)"><span class="sev-icon">🟡</span><div class="sev-label">Media</div><div class="sev-desc">Con precaución</div></div>
+          <div class="sev-card" onclick="selSev('alta',this)"><span class="sev-icon">🔴</span><div class="sev-label">Alta</div><div class="sev-desc">No puede continuar</div></div>
+        </div>
+        <div class="form-group mb-5">
+          <label class="form-label">Descripción</label>
+          <textarea class="form-input" id="descripcion" rows="4" placeholder="Describa detalladamente lo que observó..."></textarea>
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-secondary flex-1 btn-lg" onclick="next(0)">← Atrás</button>
+          <button class="btn btn-primary flex-1 btn-lg" onclick="next(2)">Continuar →</button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-panel" id="step-2">
+        <div class="step-header">
+          <div class="step-title">¿Puede continuar el servicio?</div>
+          <div class="step-sub">Información crítica para Operaciones</div>
+        </div>
+        <div class="yn-row">
+          <div class="yn-btn" onclick="selYN('si',this)"><span class="yn-icon">✅</span><div class="yn-label">Sí, continúo</div></div>
+          <div class="yn-btn" onclick="selYN('no',this)"><span class="yn-icon">🛑</span><div class="yn-label">No, detenido</div></div>
+        </div>
+        <div id="mec-panel" style="display:none;animation:fadeIn 0.2s both">
+          <div class="notice danger mb-4">
+            <span class="notice-icon">🔴</span>
+            <div class="notice-content">
+              <div class="notice-title">Bus detenido — Se notificará al mecánico más cercano</div>
+            </div>
+          </div>
+          <div class="form-group mb-5">
+            <label class="form-label">Mecánico contactado</label>
+            <select class="form-input form-select">
+              <option selected>R. Herrera · +56 9 1234 5678 (Más cercano)</option>
+            </select>
+          </div>
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-secondary flex-1 btn-lg" onclick="next(1)">← Atrás</button>
+          <button class="btn btn-primary flex-1 btn-lg" onclick="next(3)">Continuar →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Fotos -->
+      <div class="step-panel" id="step-3">
+        <div class="step-header">
+          <div class="step-title">Fotografías</div>
+          <div class="step-sub">Opcional — ayuda al diagnóstico del mecánico</div>
+        </div>
+        <div class="photo-area" onclick="simPhoto()" id="photo-area">
+          <span class="photo-area-icon" id="photo-icon">📷</span>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px" id="photo-txt">Tomar o adjuntar foto</div>
+          <div class="fs-12 text-muted" id="photo-sub">Toque para abrir cámara o galería</div>
+        </div>
+        <div class="form-group mb-5">
+          <label class="form-label">Observaciones adicionales</label>
+          <textarea class="form-input" rows="3" placeholder="Cualquier dato adicional para el mecánico..."></textarea>
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-secondary flex-1 btn-lg" onclick="next(2)">← Atrás</button>
+          <button class="btn btn-primary flex-1 btn-lg" onclick="buildResumen();next(4)">Ver resumen →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Confirmar -->
+      <div class="step-panel" id="step-4">
+        <div class="step-header">
+          <div class="step-title">Confirmar y enviar</div>
+          <div class="step-sub">Revise antes de registrar</div>
+        </div>
+        <div class="card mb-4">
+          <div class="card-header" style="background:var(--gold-pale);border-color:var(--gold-border)">
+            <span class="card-title" style="color:var(--gold)">📋 Resumen del incidente</span>
+          </div>
+          <table class="summary-table">
+            <tr><td>Bus</td><td class="fw-600">BUS 106 · BCLK50</td></tr>
+            <tr><td>Postura</td><td class="fw-600">POS-001 · Santiago → Antofagasta</td></tr>
+            <tr><td>Ubicación</td><td class="fw-600" id="res-ubic">—</td></tr>
+            <tr><td>Tipo</td><td class="fw-600" id="res-tipo">—</td></tr>
+            <tr><td>Gravedad</td><td id="res-grav">—</td></tr>
+            <tr><td>¿Continúa?</td><td id="res-cont">—</td></tr>
+            <tr><td>Hora registro</td><td class="fw-600" id="res-hora">—</td></tr>
+          </table>
+        </div>
+        <div class="notice warn mb-4">
+          <span class="notice-icon">⚠️</span>
+          <div class="notice-content">
+            <div class="notice-title">Registro permanente</div>
+            <div class="notice-desc">Este incidente quedará auditado. Operaciones y Mantenimiento serán notificados.</div>
+          </div>
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-secondary flex-1 btn-lg" onclick="next(3)">← Atrás</button>
+          <button class="btn btn-primary flex-1 btn-lg" onclick="enviar()">📤 Registrar incidente</button>
+        </div>
+      </div>
+
+      <!-- Success -->
+      <div class="success-screen" id="success">
+        <div style="font-size:64px;margin-bottom:var(--sp-5)">✅</div>
+        <div style="font-size:22px;font-weight:900;margin-bottom:var(--sp-3)">Incidente registrado</div>
+        <div class="text-secondary mb-6 fs-13">Operaciones y Mecánico han sido notificados automáticamente.</div>
+        <div class="card mb-5">
+          <table class="summary-table">
+            <tr><td>N° Incidente</td><td class="fw-700 text-gold">#INC-2026-0847</td></tr>
+            <tr><td>Estado</td><td><span class="badge ok">Registrado</span></td></tr>
+            <tr><td>Mecánico</td><td class="fw-600">R. Herrera ✓</td></tr>
+            <tr><td>Operaciones</td><td class="fw-600">J. Operaciones ✓</td></tr>
+          </table>
+        </div>
+        <a href="index.html" class="btn btn-primary btn-lg w-full">🏠 Volver al inicio</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    let stepActual = 0;
+    let sev = '', yn = '';
+
+    function next(n) {
+      document.getElementById(`step-${stepActual}`).classList.remove('active');
+      document.getElementById(`dot-${stepActual}`).classList.remove('active');
+      document.getElementById(`dot-${stepActual}`).classList.add('done');
+      stepActual = n;
+      document.getElementById(`step-${n}`).classList.add('active');
+      document.getElementById(`dot-${n}`).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function selSev(s, el) {
+      document.querySelectorAll('.sev-card').forEach(b => b.className = 'sev-card');
+      el.classList.add('sel', s); sev = s;
+    }
+
+    function selYN(s, el) {
+      document.querySelectorAll('.yn-btn').forEach(b => b.className = 'yn-btn');
+      el.classList.add('sel', s); yn = s;
+      document.getElementById('mec-panel').style.display = s === 'no' ? 'block' : 'none';
+    }
+
+    function simPhoto() {
+      document.getElementById('photo-area').style.borderColor = 'var(--ok)';
+      document.getElementById('photo-icon').textContent = '📸';
+      document.getElementById('photo-txt').textContent  = '1 foto adjuntada';
+      document.getElementById('photo-sub').textContent  = 'falla_bus_106.jpg';
+    }
+
+    function buildResumen() {
+      const hora = new Date().toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
+      document.getElementById('res-ubic').textContent = document.getElementById('ubicacion')?.value || '—';
+      const tipo = document.getElementById('tipo-inc')?.value || '—';
+      document.getElementById('res-tipo').textContent = tipo.replace(/_/g,' ');
+      document.getElementById('res-grav').innerHTML   = sev ? `<span class="badge ${sev==='baja'?'ok':sev==='media'?'warn':'danger'}">${sev.toUpperCase()}</span>` : '—';
+      document.getElementById('res-cont').innerHTML   = yn ? (yn==='si'?'<span class="badge ok">✓ Sí</span>':'<span class="badge danger">✕ No</span>') : '—';
+      document.getElementById('res-hora').textContent = hora;
+    }
+
+    function enviar() {
+      document.querySelectorAll('.step-panel,.step-dots').forEach(el => el.style.display='none');
+      document.getElementById('success').classList.add('show');
+      window.scrollTo({ top:0, behavior:'smooth' });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corridas — PlussChile SGO</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .corrida-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: var(--sp-5); box-shadow: var(--shadow-xs); }
+    .corrida-card-header { padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border); background: var(--bg-muted); display: flex; align-items: center; gap: var(--sp-3); }
+    .corrida-motivo { padding: var(--sp-4); background: var(--danger-bg); border: 1px solid var(--danger-border); border-radius: var(--r-md); margin-bottom: var(--sp-5); font-size:13px; }
+    .corrida-motivo .lbl { font-size:10px; font-weight:700; color:var(--danger-text); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:4px; }
+    .posturas-afectadas .pa-row { display:flex; align-items:center; gap:var(--sp-4); padding:var(--sp-3) var(--sp-4); border:1px solid var(--border); border-radius:var(--r-md); margin-bottom:var(--sp-2); background:var(--bg-white); }
+    .pa-hora { font-size:15px; font-weight:800; color:var(--text-primary); min-width:50px; }
+    .pa-ruta { flex:1; font-size:13px; font-weight:600; }
+    .pa-change { display:flex; align-items:center; gap:var(--sp-2); font-size:11px; font-family:monospace; }
+    .nueva-form { display: none; }
+    .nueva-form.open { display: block; animation: fadeIn 0.2s both; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div id="topbar-mount"></div>
+    <div class="page-content fade-in">
+
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h1 style="font-size:18px;font-weight:800;margin-bottom:2px">Corridas</h1>
+          <div class="fs-12 text-muted">Reemplazos de máquina · 1 corrida activa</div>
+        </div>
+        <button class="btn btn-primary" onclick="toggleForm()">+ Nueva corrida</button>
+      </div>
+
+      <!-- Form nueva corrida -->
+      <div class="card nueva-form mb-5" id="nueva-form">
+        <div class="card-header">
+          <span class="card-title">🔄 Crear nueva corrida</span>
+          <button class="btn-icon ml-auto" onclick="toggleForm()">✕</button>
+        </div>
+        <div class="card-body">
+          <div class="grid-2 gap-5 mb-4">
+            <div class="form-group">
+              <label class="form-label">Bus original (que falla)</label>
+              <select class="form-input form-select" id="bus-orig">
+                <option value="">Seleccionar bus...</option>
+                ${''}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Postura afectada</label>
+              <select class="form-input form-select"><option value="">Seleccionar postura...</option></select>
+            </div>
+          </div>
+          <div class="form-group mb-4">
+            <label class="form-label">Motivo (obligatorio)</label>
+            <textarea class="form-input" id="form-motivo" rows="3" placeholder="Describa el motivo del reemplazo..."></textarea>
+          </div>
+          <div class="form-group mb-4">
+            <label class="form-label">Bus sustituto disponible</label>
+            <select class="form-input form-select" id="bus-sust"><option value="">Seleccionar...</option></select>
+          </div>
+          <div class="flex gap-3 justify-between">
+            <button class="btn btn-secondary" onclick="toggleForm()">Cancelar</button>
+            <button class="btn btn-primary" onclick="crearCorrida()">🔄 Crear corrida</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Corrida activa -->
+      <div class="corrida-card">
+        <div class="corrida-card-header">
+          <span class="badge danger"><span class="badge-dot danger"></span>Activa</span>
+          <span style="font-size:14px;font-weight:700">Corrida #1 — 01/09/2026 · 05:45</span>
+          <div class="ml-auto flex gap-2">
+            <span class="badge neutral">J. Operaciones</span>
+            <button class="btn btn-sm btn-ok" onclick="cerrar()">✓ Cerrar corrida</button>
+          </div>
+        </div>
+        <div style="padding:var(--sp-5)">
+          <div class="corrida-motivo">
+            <div class="lbl">Motivo</div>
+            Bus BUS 104 ingresó a mantenimiento correctivo por falla en sistema de frenos ABS. Pozo P-02. Mecánico: R. Herrera. Tiempo estimado: 8h.
+          </div>
+
+          <div class="section-label mb-3">Intercambio de máquina</div>
+          <div class="corrida-flow mb-5">
+            <div class="corrida-bus original">
+              <div class="bus-lbl">Bus original</div>
+              <div class="bus-num">BUS 104</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace">BCLK48</div>
+              <div class="mt-3"><span class="badge danger">Mantenimiento</span></div>
+            </div>
+            <div class="corrida-arrow">→</div>
+            <div class="corrida-bus sustituto">
+              <div class="bus-lbl">Bus sustituto</div>
+              <div class="bus-num">BUS 101</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace">BCLK45</div>
+              <div class="mt-3"><span class="badge ok">Disponible</span></div>
+            </div>
+          </div>
+
+          <div class="section-label mb-3">Posturas afectadas (2)</div>
+          <div class="posturas-afectadas">
+            <div class="pa-row">
+              <span class="tag">POS-006</span>
+              <span class="pa-hora">13:00</span>
+              <span class="pa-ruta">Santiago → Calama <span class="badge gold fs-11">⛏️ Minero</span></span>
+              <div class="pa-change">
+                <span style="color:var(--danger-text)">BUS 104</span>
+                <span style="color:var(--gold)">→</span>
+                <span style="color:var(--ok-text)">BUS 101</span>
+                <span class="badge ok ml-2">✓ Cubierta</span>
+              </div>
+            </div>
+            <div class="pa-row">
+              <span class="tag">POS-009</span>
+              <span class="pa-hora">19:00</span>
+              <span class="pa-ruta">Temuco → Santiago</span>
+              <div class="pa-change">
+                <span style="color:var(--danger-text)">BUS 104</span>
+                <span style="color:var(--gold)">→</span>
+                <span style="color:var(--warn-text)">Por definir</span>
+                <span class="badge warn ml-2">⚠ Pendiente</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice info mt-5">
+            <span class="notice-icon">ℹ️</span>
+            <div class="notice-content">
+              <div class="notice-title">Reincorporación pendiente de regla</div>
+              <div class="notice-desc">¿Cuando BUS 104 esté reparado, se reincorpora automáticamente o queda en espera? Regla de negocio por confirmar con Operaciones.</div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-5">
+            <a href="auditoria.html" class="btn btn-secondary">📋 Ver auditoría</a>
+            <a href="mantenimiento.html" class="btn btn-secondary">🔧 Ver orden #1</a>
+            <button class="btn btn-ok ml-auto" onclick="cerrar()">✓ Cerrar corrida</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historial -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Historial de corridas</span>
+          <span class="badge neutral">3 de 12</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Fecha</th><th>Bus original</th><th>Sustituto</th><th>Motivo</th><th>Posturas</th><th>Usuario</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr class="clickable"><td class="fw-700" style="color:var(--gold)">#1</td><td>01/09/2026 05:45</td><td><span class="tag">BUS 104</span></td><td><span class="tag" style="color:var(--ok-text)">BUS 101</span></td><td class="text-secondary" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Falla sistema de frenos ABS</td><td><span class="badge warn">2 afectadas</span></td><td class="text-muted">J. Operaciones</td><td><span class="badge danger"><span class="badge-dot danger"></span>Activa</span></td></tr>
+              <tr class="clickable"><td class="text-muted">#0</td><td class="text-muted">28/08 14:20</td><td><span class="tag">BUS 108</span></td><td><span class="tag">BUS 105</span></td><td class="text-muted">Neumático reventado</td><td><span class="badge ok">1 cubierta</span></td><td class="text-muted">Op. Martínez</td><td><span class="badge ok">Cerrada</span></td></tr>
+              <tr class="clickable"><td class="text-muted">#-1</td><td class="text-muted">25/08 07:10</td><td><span class="tag">BUS 103</span></td><td><span class="tag">BUS 107</span></td><td class="text-muted">Mantenimiento preventivo</td><td><span class="badge ok">3 cubiertas</span></td><td class="text-muted">J. Operaciones</td><td><span class="badge ok">Cerrada</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.getElementById('sidebar-mount').innerHTML = renderSidebar('corrida');
+    document.getElementById('topbar-mount').innerHTML  = renderTopbar('Corridas','Reemplazos de máquina');
+
+    // Llenar selects
+    document.getElementById('bus-orig').innerHTML += DATA.buses.map(b => `<option>${b.numero} · ${b.patente}</option>`).join('');
+    document.getElementById('bus-sust').innerHTML += DATA.buses.filter(b=>b.estado==='DISPONIBLE').map(b=>`<option>${b.numero} · ${b.patente}</option>`).join('');
+
+    function toggleForm() { document.getElementById('nueva-form').classList.toggle('open'); }
+
+    function crearCorrida() {
+      const m = document.getElementById('form-motivo').value.trim();
+      if (!m) { document.getElementById('form-motivo').style.borderColor='var(--danger)'; return; }
+      toggleForm();
+      showToast('Corrida creada y registrada', 'gold');
+    }
+
+    function cerrar() {
+      if (!confirm('¿Confirma cerrar la Corrida #1?')) return;
+      showToast('Corrida cerrada correctamente', 'ok');
+    }
+  </script>
+</body>
+</html>
