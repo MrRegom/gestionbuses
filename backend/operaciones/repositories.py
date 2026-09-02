@@ -80,3 +80,41 @@ class PosturaRepository:
         )
         return asignacion
 
+
+    @staticmethod
+    def delete_persona(persona):
+        persona.delete()
+
+class CiudadRepository:
+    @staticmethod
+    def get_todas():
+        from .models import Ciudad
+        return Ciudad.objects.all().order_by('nombre')
+
+    @staticmethod
+    def create(data: dict):
+        from .models import Ciudad
+        return Ciudad.objects.create(**data)
+
+class AsignacionRepository:
+    @staticmethod
+    def get_by_id(asignacion_id: int):
+        from .models import AsignacionTripulacion
+        try:
+            return AsignacionTripulacion.objects.select_related('persona', 'postura').get(id=asignacion_id)
+        except AsignacionTripulacion.DoesNotExist:
+            return None
+
+    @staticmethod
+    def delete(asignacion):
+        asignacion.delete()
+
+class RutaRepositoryExtra:
+    @staticmethod
+    def create(data: dict):
+        from .models import Ruta
+        return Ruta.objects.create(**data)
+
+    @staticmethod
+    def delete(ruta):
+        ruta.delete()

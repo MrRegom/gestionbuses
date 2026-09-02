@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import axios from '../api';
+import DialogoForm, { mensajeError } from '../components/DialogoForm';
 import {
-  Bus, Settings2, Plus, ArrowRight, ShieldCheck,
-  Wrench, AlertCircle, Search, RefreshCw,
+  Bus, Plus, ShieldCheck,
+  Wrench, AlertCircle, Search, RefreshCw, Edit, Trash2,
 } from 'lucide-react';
 
 const ESTADOS = {
@@ -18,6 +19,11 @@ export default function Flota() {
   const [error, setError] = useState(null);
   const [busqueda, setBusqueda] = useState('');
 
+  const [dialogo, setDialogo] = useState(null);   // null | 'crear' | {id}
+  const [form, setForm] = useState({});
+  const [guardando, setGuardando] = useState(false);
+  const [dlgError, setDlgError] = useState(null);
+
   const fetchBuses = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -32,6 +38,46 @@ export default function Flota() {
   }, []);
 
   useEffect(() => { fetchBuses(); }, [fetchBuses]);
+
+  const FORM_VACIO = {
+    numero: '', patente: '', modelo: '', kilometraje: 0,
+    servicio: 'SC', estado: 'DISPONIBLE', pozo: '',
+  };
+
+  const abrirCrear = () => { setForm(FORM_VACIO); setDlgError(null); setDialogo('crear'); };
+  const abrirEditar = bus => {
+    setForm({ ...bus, pozo: bus.pozo ?? '' });
+    setDlgError(null);
+    setDialogo({ id: bus.id });
+  };
+  const cerrar = () => { setDialogo(null); setDlgError(null); };
+
+  const guardar = async () => {
+    setGuardando(true);
+    setDlgError(null);
+    try {
+      if (dialogo === 'crear') {
+        await axios.post('/api/flota/buses/', form);
+      } else {
+        await axios.put(`/api/flota/buses/${dialogo.id}/`, form);
+      }
+      cerrar();
+      await fetchBuses();
+    } catch (err) {
+      setDlgError(mensajeError(err, 'No se pudo guardar el bus.'));
+    }
+    setGuardando(false);
+  };
+
+  const eliminar = async bus => {
+    if (!window.confirm(`¿Eliminar ${bus.numero}? La acción no se puede deshacer.`)) return;
+    try {
+      await axios.delete(`/api/flota/buses/${bus.id}/`);
+      await fetchBuses();
+    } catch (err) {
+      alert(mensajeError(err, 'No se pudo eliminar el bus.'));
+    }
+  };
 
   const filtrados = buses.filter(b => {
     const q = busqueda.trim().toLowerCase();
@@ -54,8 +100,7 @@ export default function Flota() {
           <p className="page-subtitle">Inventario de buses y mantenimiento</p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-secondary"><Settings2 size={15} /> Configurar</button>
-          <button className="btn btn-primary"><Plus size={15} /> Ingresar bus</button>
+          <button className="btn btn-primary" onClick={abrirCrear}><Plus size={15} /> Ingresar bus</button>
         </div>
       </div>
 
@@ -166,9 +211,23 @@ export default function Flota() {
                           </span>
                         </td>
                         <td data-label="Acción">
-                          <button className="btn btn-ghost btn-sm">
-                            Ver detalle <ArrowRight size={14} />
-                          </button>
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              className="btn-icon" title="Editar"
+                              aria-label={`Editar ${bus.numero}`}
+                              onClick={() => abrirEditar(bus)}
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              className="btn-icon" title="Eliminar"
+                              aria-label={`Eliminar ${bus.numero}`}
+                              style={{ color: 'var(--danger)' }}
+                              onClick={() => eliminar(bus)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -179,6 +238,84 @@ export default function Flota() {
           )}
         </div>
       </div>
+
+      <DialogoForm
+        abierto={Boolean(dialogo)}
+        titulo={dialogo === 'crear' ? 'Ingresar bus' : 'Editar bus'}
+        onCerrar={cerrar}
+        onGuardar={guardar}
+        guardando={guardando}
+        error={dlgError}
+        disabled={!form.numero || !form.patente || !form.modelo}
+      >
+        <div className="grid-2">
+          <div className="form-group">
+            <label className="form-label" htmlFor="bus-num">Nº interno</label>
+            <input
+              id="bus-num" type="text" className="form-input" required
+              value={form.numero ?? ''}
+              onChange={e => setForm({ ...form, numero: e.target.value })}
+              placeholder="BUS 110"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="bus-pat">Patente</label>
+            <input
+              id="bus-pat" type="text" className="form-input mono" required
+              value={form.patente ?? ''}
+              onChange={e => setForm({ ...form, patente: e.target.value.toUpperCase() })}
+              placeholder="BCLK45"
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="bus-mod">Modelo</label>
+          <input
+            id="bus-mod" type="text" className="form-input" required
+            value={form.modelo ?? ''}
+            onChange={e => setForm({ ...form, modelo: e.target.value })}
+            placeholder="Volvo 9800"
+          />
+        </div>
+
+        <div className="grid-2">
+          <div className="form-group">
+            <label className="form-label" htmlFor="bus-km">Kilometraje</label>
+            <input
+              id="bus-km" type="number" min="0" className="form-input"
+              value={form.kilometraje ?? 0}
+              onChange={e => setForm({ ...form, kilometraje: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="bus-serv">Servicio</label>
+            <select
+              id="bus-serv" className="form-input form-select"
+              value={form.servicio ?? 'SC'}
+              onChange={e => setForm({ ...form, servicio: e.target.value })}
+            >
+              <option value="SC">Semi Cama</option>
+              <option value="SLC">Salón Cama</option>
+              <option value="CP">Cama Premium</option>
+              <option value="MIN">Minero</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="bus-est">Estado</label>
+          <select
+            id="bus-est" className="form-input form-select"
+            value={form.estado ?? 'DISPONIBLE'}
+            onChange={e => setForm({ ...form, estado: e.target.value })}
+          >
+            {Object.entries(ESTADOS).map(([v, e]) => (
+              <option key={v} value={v}>{e.label}</option>
+            ))}
+          </select>
+        </div>
+      </DialogoForm>
     </>
   );
 }

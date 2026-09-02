@@ -74,22 +74,22 @@ hoy = datetime.date.today()
 
 posturas_data = [
     # IDA — Salidas desde Santiago (mañana y tarde)
-    { 'codigo':'SGO-CH-001', 'ruta': ruta('Santiago','Chillán'),      'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(0), 'estado':'COMPLETA' },
-    { 'codigo':'SGO-CC-001', 'ruta': ruta('Santiago','Concepción'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(1), 'estado':'COMPLETA' },
-    { 'codigo':'SGO-LA-001', 'ruta': ruta('Santiago','Los Ángeles'),  'fecha':hoy, 'hora_salida':'08:00', 'bus':bus(2), 'estado':'EN_CURSO' },
-    { 'codigo':'SGO-TH-001', 'ruta': ruta('Santiago','Talcahuano'),   'fecha':hoy, 'hora_salida':'08:30', 'bus':bus(3), 'estado':'EN_CURSO' },
-    { 'codigo':'SGO-TM-001', 'ruta': ruta('Santiago','Tomé'),         'fecha':hoy, 'hora_salida':'09:00', 'bus':bus(4), 'estado':'LISTA'    },
-    { 'codigo':'SGO-CO-001', 'ruta': ruta('Santiago','Coronel'),      'fecha':hoy, 'hora_salida':'09:30', 'bus':bus(5), 'estado':'LISTA'    },
-    { 'codigo':'SGO-LO-001', 'ruta': ruta('Santiago','Lota'),         'fecha':hoy, 'hora_salida':'10:00', 'bus':None,   'estado':'PROBLEMA' },
-    { 'codigo':'SGO-CA-001', 'ruta': ruta('Santiago','Cañete'),       'fecha':hoy, 'hora_salida':'10:30', 'bus':bus(6), 'estado':'LISTA'    },
+    { 'codigo':'112201', 'ruta': ruta('Santiago','Chillán'),      'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(0), 'estado':'COMPLETA' },
+    { 'codigo':'112202', 'ruta': ruta('Santiago','Concepción'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(1), 'estado':'COMPLETA' },
+    { 'codigo':'112203', 'ruta': ruta('Santiago','Los Ángeles'),  'fecha':hoy, 'hora_salida':'08:00', 'bus':bus(2), 'estado':'EN_CURSO' },
+    { 'codigo':'112204', 'ruta': ruta('Santiago','Talcahuano'),   'fecha':hoy, 'hora_salida':'08:30', 'bus':bus(3), 'estado':'EN_CURSO' },
+    { 'codigo':'112205', 'ruta': ruta('Santiago','Tomé'),         'fecha':hoy, 'hora_salida':'09:00', 'bus':bus(4), 'estado':'LISTA'    },
+    { 'codigo':'112206', 'ruta': ruta('Santiago','Coronel'),      'fecha':hoy, 'hora_salida':'09:30', 'bus':bus(5), 'estado':'LISTA'    },
+    { 'codigo':'112207', 'ruta': ruta('Santiago','Lota'),         'fecha':hoy, 'hora_salida':'10:00', 'bus':None,   'estado':'PROBLEMA' },
+    { 'codigo':'112208', 'ruta': ruta('Santiago','Cañete'),       'fecha':hoy, 'hora_salida':'10:30', 'bus':bus(6), 'estado':'LISTA'    },
     # Salidas nocturnas
-    { 'codigo':'SGO-CC-002', 'ruta': ruta('Santiago','Concepción'),   'fecha':hoy, 'hora_salida':'22:00', 'bus':bus(7), 'estado':'LISTA'    },
-    { 'codigo':'SGO-CH-002', 'ruta': ruta('Santiago','Chillán'),      'fecha':hoy, 'hora_salida':'23:00', 'bus':bus(8), 'estado':'LISTA'    },
+    { 'codigo':'112209', 'ruta': ruta('Santiago','Concepción'),   'fecha':hoy, 'hora_salida':'22:00', 'bus':bus(7), 'estado':'LISTA'    },
+    { 'codigo':'112210', 'ruta': ruta('Santiago','Chillán'),      'fecha':hoy, 'hora_salida':'23:00', 'bus':bus(8), 'estado':'LISTA'    },
     # VUELTA — Salidas desde destino hacia Santiago
-    { 'codigo':'CH-SGO-001', 'ruta': ruta('Chillán','Santiago'),      'fecha':hoy, 'hora_salida':'06:00', 'bus':bus(9), 'estado':'COMPLETA' },
-    { 'codigo':'CC-SGO-001', 'ruta': ruta('Concepción','Santiago'),   'fecha':hoy, 'hora_salida':'06:30', 'bus':bus(0), 'estado':'COMPLETA' },
-    { 'codigo':'LA-SGO-001', 'ruta': ruta('Los Ángeles','Santiago'),  'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(1), 'estado':'ALERTA'   },
-    { 'codigo':'TH-SGO-001', 'ruta': ruta('Talcahuano','Santiago'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(2), 'estado':'EN_CURSO' },
+    { 'codigo':'112211', 'ruta': ruta('Chillán','Santiago'),      'fecha':hoy, 'hora_salida':'06:00', 'bus':bus(9), 'estado':'COMPLETA' },
+    { 'codigo':'112212', 'ruta': ruta('Concepción','Santiago'),   'fecha':hoy, 'hora_salida':'06:30', 'bus':bus(0), 'estado':'COMPLETA' },
+    { 'codigo':'112213', 'ruta': ruta('Los Ángeles','Santiago'),  'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(1), 'estado':'ALERTA'   },
+    { 'codigo':'112214', 'ruta': ruta('Talcahuano','Santiago'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(2), 'estado':'EN_CURSO' },
 ]
 
 for p in posturas_data:

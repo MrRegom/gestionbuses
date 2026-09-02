@@ -1,3 +1,4 @@
+from django.core.validators import RegexValidator
 from django.db import models
 
 class Persona(models.Model):
@@ -73,7 +74,17 @@ class Postura(models.Model):
         EN_CURSO = 'EN_CURSO', 'En Curso'
         COMPLETA = 'COMPLETA', 'Completa'
 
-    codigo = models.CharField(max_length=20, unique=True)
+    # Código operativo con el que la empresa identifica el servicio.
+    # En la planilla actual es numérico de 6 dígitos (ej. 112218); se
+    # deja como texto para no perder ceros a la izquierda ni cerrar la
+    # puerta a otro formato más adelante.
+    codigo = models.CharField(
+        max_length=20, unique=True,
+        validators=[RegexValidator(
+            r'^\d{4,8}$',
+            'El código de postura debe ser numérico, de 4 a 8 dígitos (ej. 112218).',
+        )],
+    )
     ruta = models.ForeignKey(Ruta, on_delete=models.RESTRICT)
     fecha = models.DateField()
     hora_salida = models.TimeField()

@@ -169,10 +169,21 @@ export const NAV_GROUPS = [
 export const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
 
 /**
- * Destinos del bottom nav en teléfono. Cuatro accesos primarios; el
- * quinto slot lo ocupa el botón "Más", que abre el menú completo.
+ * Bottom nav del teléfono.
+ *
+ * Solo la tripulación trabaja desde el celular: Operaciones y el taller
+ * usan PC. Por eso los accesos rápidos son los suyos —su checklist y el
+ * reporte de fallas— y para el resto de perfiles el bottom nav no se
+ * muestra: en un escritorio solo estorbaría.
  */
-export const BOTTOM_NAV_IDS = ['dashboard', 'planificacion', 'flota', 'conductores'];
+export const BOTTOM_NAV_IDS = ['dashboard', 'checklist', 'incidentes'];
+
+/** Perfiles cuyo trabajo ocurre en el celular. */
+const ROLES_MOVILES = [ROLES.CONDUCTOR, ROLES.ASISTENTE];
+
+export function usaBottomNav(rol) {
+  return ROLES_MOVILES.includes(rol);
+}
 
 /** Grupos visibles para un rol, sin los grupos que quedan vacíos. */
 export function navParaRol(rol) {

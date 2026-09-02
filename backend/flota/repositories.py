@@ -30,3 +30,7 @@ class BusRepository:
             setattr(bus, field, value)
         bus.save()
         return bus
+
+    @staticmethod
+    def delete_bus(bus: Bus):
+        bus.delete()

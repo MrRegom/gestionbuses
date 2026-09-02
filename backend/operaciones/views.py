@@ -49,10 +49,22 @@ class PosturaDetailView(APIView):
     roles_permitidos = OPERACIONES
     def put(self, request, pk):
         try:
-            postura = PlanificacionService.update_postura(pk, request.data)
-            return Response(PosturaSerializer(postura).data, status=status.HTTP_200_OK)
+            postura = PlanificacionService.get_postura(pk)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        # Pasa por el serializer para que corran las validaciones del
+        # modelo: escribir directo con setattr las saltaba y permitía
+        # guardar un código fuera de formato al editar.
+        serializer = PosturaSerializer(postura, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            postura = PlanificacionService.update_postura(pk, serializer.validated_data)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PosturaSerializer(postura).data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
         try:
@@ -74,3 +86,137 @@ class AsignarTripulacionView(APIView):
             return Response(PosturaSerializer(postura).data, status=status.HTTP_200_OK)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ── PERSONAL ─────────────────────────────────────────────────
+from .services import PersonalService, CatalogoService  # noqa: E402
+from .serializers import CiudadSerializer  # noqa: E402
+
+
+class PersonalCreateView(APIView):
+    """Alta de personal."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def post(self, request):
+        serializer = PersonaSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            persona = PersonalService.crear(serializer.validated_data)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PersonaSerializer(persona).data, status=status.HTTP_201_CREATED)
+
+
+class PersonalDetailView(APIView):
+    """Edición y baja de una persona."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def put(self, request, pk):
+        try:
+            persona = PersonalService.actualizar(pk, request.data)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        try:
+            PersonalService.eliminar(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── CATÁLOGO: CIUDADES Y RUTAS ───────────────────────────────
+class CiudadListCreateView(APIView):
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request):
+        return Response(CiudadSerializer(CatalogoService.get_ciudades(), many=True).data,
+                        status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = CiudadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        ciudad = CatalogoService.crear_ciudad(serializer.validated_data)
+        return Response(CiudadSerializer(ciudad).data, status=status.HTTP_201_CREATED)
+
+
+class RutaCreateView(APIView):
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def post(self, request):
+        serializer = RutaSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ruta = CatalogoService.crear_ruta(serializer.validated_data)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(RutaSerializer(ruta).data, status=status.HTTP_201_CREATED)
+
+
+class RutaDetailView(APIView):
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def delete(self, request, pk):
+        try:
+            CatalogoService.eliminar_ruta(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── POSTURA: BUS, TRIPULACIÓN Y DISPONIBILIDAD ───────────────
+class PosturaBusView(APIView):
+    """Asigna o libera el bus de una postura."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def post(self, request, pk):
+        try:
+            PlanificacionService.asignar_bus(pk, request.data.get('bus_id'))
+            postura = PlanificacionService.get_todas_posturas().get(id=pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PosturaSerializer(postura).data, status=status.HTTP_200_OK)
+
+
+class DesasignarTripulacionView(APIView):
+    """Quita a una persona de la postura."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def delete(self, request, pk):
+        try:
+            PlanificacionService.desasignar_tripulacion(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PersonalDisponibleView(APIView):
+    """Personal apto para una postura, con el motivo de quien no lo está."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request, pk):
+        try:
+            filas = PlanificacionService.personal_disponible(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response([
+            {
+                'persona': PersonaSerializer(f['persona']).data,
+                'disponible': f['disponible'],
+                'motivo': f['motivo'],
+            }
+            for f in filas
+        ], status=status.HTTP_200_OK)

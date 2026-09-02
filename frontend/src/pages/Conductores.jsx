@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import axios from 'axios';
+import axios from '../api';
+import DialogoForm, { mensajeError } from '../components/DialogoForm';
 import {
   Users, Plus, CheckCircle2, AlertTriangle, XCircle,
   Search, ArrowRight, MapPin, Clock, Bus as BusIcon,
-  X, Calendar, AlertCircle, RefreshCw,
+  X, Calendar, AlertCircle, RefreshCw, Edit, Trash2,
 } from 'lucide-react';
 
 /* ─ helpers ──────────────────────────────────────────────── */
@@ -272,6 +273,11 @@ export default function Conductores() {
   const [selected, setSelected] = useState(null);
   const [busqueda, setBusqueda] = useState('');
 
+  const [dialogo, setDialogo] = useState(null);   // null | 'crear' | {id}
+  const [form, setForm] = useState({});
+  const [guardando, setGuardando] = useState(false);
+  const [dlgError, setDlgError] = useState(null);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -298,6 +304,44 @@ export default function Conductores() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selected]);
 
+  const FORM_VACIO = { rut: '', nombre: '', rol: 'CONDUCTOR', tipo: 'TITULAR' };
+
+  const abrirCrear = () => { setForm(FORM_VACIO); setDlgError(null); setDialogo('crear'); };
+  const abrirEditar = persona => {
+    setForm({ rut: persona.rut, nombre: persona.nombre, rol: persona.rol, tipo: persona.tipo });
+    setDlgError(null);
+    setDialogo({ id: persona.id });
+  };
+  const cerrarDialogo = () => { setDialogo(null); setDlgError(null); };
+
+  const guardarPersona = async () => {
+    setGuardando(true);
+    setDlgError(null);
+    try {
+      if (dialogo === 'crear') {
+        await axios.post('/api/operaciones/personal/', form);
+      } else {
+        await axios.put(`/api/operaciones/personal/${dialogo.id}/`, form);
+      }
+      cerrarDialogo();
+      await fetchAll();
+    } catch (err) {
+      setDlgError(mensajeError(err, 'No se pudo guardar la persona.'));
+    }
+    setGuardando(false);
+  };
+
+  const eliminarPersona = async persona => {
+    if (!window.confirm(`¿Eliminar a ${persona.nombre}? La acción no se puede deshacer.`)) return;
+    try {
+      await axios.delete(`/api/operaciones/personal/${persona.id}/`);
+      if (selected?.id === persona.id) setSelected(null);
+      await fetchAll();
+    } catch (err) {
+      alert(mensajeError(err, 'No se pudo eliminar la persona.'));
+    }
+  };
+
   /* Asignar conductor a postura */
   const handleAsignar = async (posturaId, personaId) => {
     await axios.post(`/api/operaciones/posturas/${posturaId}/asignar/`, {
@@ -310,10 +354,18 @@ export default function Conductores() {
     if (actualizado) setSelected(actualizado);
   };
 
-  /* Desasignar — el backend aún no expone el endpoint de borrado
-     de una asignación individual (ver operaciones/urls.py). */
-  const handleDesasignar = () => {
-    alert('La desasignación requiere un endpoint que el backend aún no expone.');
+  /* Quita a la persona de una postura. */
+  const handleDesasignar = async (posturaId, asignacionId) => {
+    if (!asignacionId) return;
+    try {
+      await axios.delete(`/api/operaciones/asignaciones/${asignacionId}/`);
+      await fetchAll();
+      const r = await axios.get('/api/operaciones/tripulacion/');
+      const actualizado = r.data.find(p => p.id === selected?.id);
+      if (actualizado) setSelected(actualizado);
+    } catch (err) {
+      alert(mensajeError(err, 'No se pudo quitar la asignación.'));
+    }
   };
 
   const personasFiltradas = personas.filter(p =>
@@ -332,7 +384,7 @@ export default function Conductores() {
           <p className="page-subtitle">Conductores y asistentes — asignación de posturas</p>
         </div>
         <div className="page-actions">
-          <button className="btn btn-primary"><Plus size={15} /> Nuevo personal</button>
+          <button className="btn btn-primary" onClick={abrirCrear}><Plus size={15} /> Nuevo personal</button>
         </div>
       </div>
 
@@ -462,12 +514,29 @@ export default function Conductores() {
                           </span>
                         </td>
                         <td data-label="Acción">
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={e => { e.stopPropagation(); setSelected(isActive ? null : persona); }}
-                          >
-                            {isActive ? 'Cerrar' : <>Ver ficha <ArrowRight size={14} /></>}
-                          </button>
+                          <div className="flex gap-2 justify-center">
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={e => { e.stopPropagation(); setSelected(isActive ? null : persona); }}
+                            >
+                              {isActive ? 'Cerrar' : <>Ficha <ArrowRight size={14} /></>}
+                            </button>
+                            <button
+                              className="btn-icon" title="Editar"
+                              aria-label={`Editar a ${persona.nombre}`}
+                              onClick={e => { e.stopPropagation(); abrirEditar(persona); }}
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              className="btn-icon" title="Eliminar"
+                              aria-label={`Eliminar a ${persona.nombre}`}
+                              style={{ color: 'var(--danger)' }}
+                              onClick={e => { e.stopPropagation(); eliminarPersona(persona); }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -486,6 +555,65 @@ export default function Conductores() {
           página, ningún estilo de contenido puede descolocarlo.
           La `key` remonta el panel al cambiar de conductor, así vuelve
           solo a su pestaña inicial sin necesidad de un efecto. */}
+      <DialogoForm
+        abierto={Boolean(dialogo)}
+        titulo={dialogo === 'crear' ? 'Nuevo personal' : 'Editar personal'}
+        onCerrar={cerrarDialogo}
+        onGuardar={guardarPersona}
+        guardando={guardando}
+        error={dlgError}
+        disabled={!form.rut || !form.nombre}
+      >
+        <div className="form-group">
+          <label className="form-label" htmlFor="per-nom">Nombre completo</label>
+          <input
+            id="per-nom" type="text" className="form-input" required
+            value={form.nombre ?? ''}
+            onChange={e => setForm({ ...form, nombre: e.target.value })}
+            placeholder="Victor Manuel Veliz Suares"
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="per-rut">RUT</label>
+          <input
+            id="per-rut" type="text" className="form-input mono" required
+            value={form.rut ?? ''}
+            onChange={e => setForm({ ...form, rut: e.target.value })}
+            placeholder="12.345.678-9"
+          />
+        </div>
+
+        <div className="grid-2">
+          <div className="form-group">
+            <label className="form-label" htmlFor="per-rol">Rol</label>
+            <select
+              id="per-rol" className="form-input form-select"
+              value={form.rol ?? 'CONDUCTOR'}
+              onChange={e => setForm({ ...form, rol: e.target.value })}
+            >
+              <option value="CONDUCTOR">Conductor</option>
+              <option value="ASISTENTE">Asistente</option>
+              <option value="MECANICO">Mecánico</option>
+              <option value="JEFE_OPERACIONES">Jefe de Operaciones</option>
+              <option value="JEFE_MECANICOS">Jefe de Mecánicos</option>
+              <option value="MONITOREO">Sala de Monitoreo</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="per-tipo">Tipo</label>
+            <select
+              id="per-tipo" className="form-input form-select"
+              value={form.tipo ?? 'TITULAR'}
+              onChange={e => setForm({ ...form, tipo: e.target.value })}
+            >
+              <option value="TITULAR">Titular</option>
+              <option value="RELEVO">Relevo</option>
+            </select>
+          </div>
+        </div>
+      </DialogoForm>
+
       {selected && createPortal(
         <>
           <div className="mobile-panel-overlay" onClick={() => setSelected(null)} aria-hidden="true" />

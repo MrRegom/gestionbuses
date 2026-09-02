@@ -1604,6 +1604,11 @@ tbody tr.clickable { cursor: pointer; }
     padding-bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + var(--sp-5));
   }
 
+  /* Sin bottom nav (Operaciones y taller) ese hueco sobra */
+  .app-shell.sin-bottomnav .page-content {
+    padding-bottom: calc(var(--safe-bottom) + var(--sp-5));
+  }
+
   .bottom-nav { display: flex; }
 
   /* El drawer ocupa toda la altura útil sobre el bottom nav */

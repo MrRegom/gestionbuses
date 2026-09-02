@@ -28,3 +28,34 @@ class BusService:
             raise ValueError("Un bus EN_SERVICIO no puede pasar a MANTENIMIENTO directo. Debe liberarse primero.")
 
         return BusRepository.update_bus(bus, {'estado': nuevo_estado})
+
+    @staticmethod
+    def crear_bus(data: dict):
+        return BusRepository.create_bus(data)
+
+    @staticmethod
+    def actualizar_bus(bus_id: int, data: dict):
+        bus = BusRepository.get_bus_by_id(bus_id)
+        if not bus:
+            raise ValueError("Bus no encontrado")
+        return BusRepository.update_bus(bus, data)
+
+    @staticmethod
+    def eliminar_bus(bus_id: int):
+        bus = BusRepository.get_bus_by_id(bus_id)
+        if not bus:
+            raise ValueError("Bus no encontrado")
+
+        # Un bus con historial no se borra: se arrastraría trazabilidad
+        # de checklists, incidentes y órdenes de trabajo.
+        if bus.checklists.exists() or bus.incidentes.exists() or bus.ordenes.exists():
+            raise ValueError(
+                f"{bus.numero} tiene historial de taller. "
+                "Márcalo como Fuera de Servicio en vez de eliminarlo."
+            )
+        if bus.postura_set.exists():
+            raise ValueError(
+                f"{bus.numero} está asignado a posturas. Libéralo antes de eliminarlo."
+            )
+
+        BusRepository.delete_bus(bus)

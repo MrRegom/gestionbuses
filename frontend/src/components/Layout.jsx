@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, LogOut, MoreHorizontal } from 'lucide-react';
-import { NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem, navParaRol } from '../config/navigation';
+import {
+  NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem, navParaRol, usaBottomNav,
+} from '../config/navigation';
 import { useAuth } from '../context/AuthContext';
 
 /** Punto de quiebre donde el sidebar pasa a ser drawer. Debe coincidir
@@ -59,12 +61,17 @@ export default function Layout() {
   const grupos = navParaRol(sesion.rol);
   const permitidos = new Set(grupos.flatMap(g => g.items.map(i => i.id)));
 
-  const bottomItems = BOTTOM_NAV_IDS
-    .map(id => NAV_ITEMS.find(i => i.id === id))
-    .filter(i => i && permitidos.has(i.id));
+  // El bottom nav es para quien trabaja desde el celular. Operaciones y
+  // el taller usan PC, así que ahí no aparece.
+  const conBottomNav = usaBottomNav(sesion.rol);
+  const bottomItems = conBottomNav
+    ? BOTTOM_NAV_IDS
+        .map(id => NAV_ITEMS.find(i => i.id === id))
+        .filter(i => i && permitidos.has(i.id))
+    : [];
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${conBottomNav ? '' : 'sin-bottomnav'}`}>
 
       {/* ── TOPBAR ────────────────────────────────────────────────
           Ocupa todo el ancho y es la capa superior del shell, así el
@@ -174,7 +181,8 @@ export default function Layout() {
         </div>
       </main>
 
-      {/* ── BOTTOM NAV (solo teléfono) ────────────────────────── */}
+      {/* ── BOTTOM NAV · solo tripulación en teléfono ─────────── */}
+      {conBottomNav && (
       <nav className="bottom-nav" aria-label="Navegación rápida">
         {bottomItems.map(item => {
           const Icon = item.icon;
@@ -200,6 +208,7 @@ export default function Layout() {
           <span className="bottom-nav-label">Más</span>
         </button>
       </nav>
+      )}
     </div>
   );
 }
