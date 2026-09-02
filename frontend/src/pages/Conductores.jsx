@@ -6,6 +6,7 @@ export default function Conductores() {
   const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedPersona, setSelectedPersona] = useState(null);
 
   useEffect(() => {
     fetchPersonas();
@@ -142,7 +143,9 @@ export default function Conductores() {
                         </div>
                       </td>
                       <td data-label="Acciones">
-                        <button className="btn-icon" title="Editar"><Edit size={14} /></button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setSelectedPersona(persona)}>
+                          Ver ficha <ArrowRight size={14} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -150,6 +153,68 @@ export default function Conductores() {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Ficha Modal */}
+      <div className={`modal-overlay ${selectedPersona ? 'open' : ''}`}>
+        <div className="modal" style={{ maxWidth: '500px' }}>
+          {selectedPersona && (
+            <>
+              <div className="modal-header">
+                <span className="modal-title">Ficha Técnica</span>
+                <button className="btn-icon" onClick={() => setSelectedPersona(null)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="user-avatar" style={{ background: getAvatarColor(selectedPersona.id), width: '64px', height: '64px', fontSize: '24px' }}>
+                    {getInitials(selectedPersona.nombre)}
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--navy)' }}>{selectedPersona.nombre}</h2>
+                    <div className="text-muted" style={{ fontFamily: 'monospace' }}>RUT: {selectedPersona.rut}</div>
+                    <div className="badge mt-2" style={{ background: 'var(--navy)', color: 'white' }}>{selectedPersona.rol} - {selectedPersona.tipo}</div>
+                  </div>
+                </div>
+                
+                <div className="grid-2 gap-4 mb-5">
+                  <div className="card" style={{ padding: 'var(--sp-4)', background: 'var(--bg-muted)', boxShadow: 'none' }}>
+                    <div className="fs-11 text-muted text-uppercase fw-600 mb-1">Horas de Conducción Hoy</div>
+                    <div className="fs-24 fw-800" style={{ color: 'var(--text-primary)' }}>{parseFloat(selectedPersona.horas_hoy)}h <span className="fs-14 fw-600 text-muted">/ 9h máx</span></div>
+                  </div>
+                  <div className="card" style={{ padding: 'var(--sp-4)', background: 'var(--bg-muted)', boxShadow: 'none' }}>
+                    <div className="fs-11 text-muted text-uppercase fw-600 mb-1">Estado Operacional</div>
+                    <div className={`badge ${getSemaforoInfo(selectedPersona.semaforo, selectedPersona.razon_bloqueo).cls} mt-1`} style={{ fontSize: '14px', padding: '6px 12px' }}>
+                      {getSemaforoInfo(selectedPersona.semaforo, selectedPersona.razon_bloqueo).icon} 
+                      {getSemaforoInfo(selectedPersona.semaforo, selectedPersona.razon_bloqueo).text}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedPersona.razon_bloqueo && (
+                  <div className="card mb-4 border-danger" style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '12px' }}>
+                    <div className="fw-700 text-danger mb-1 flex items-center gap-2"><AlertTriangle size={16} /> Motivo de Bloqueo</div>
+                    <p className="fs-13 m-0" style={{ color: '#991b1b' }}>{selectedPersona.razon_bloqueo}</p>
+                  </div>
+                )}
+
+                <div className="border-t pt-4">
+                  <h3 className="fs-14 fw-700 mb-3 text-uppercase text-muted">Próxima Asignación</h3>
+                  <div className="flex items-center justify-between p-3" style={{ background: 'var(--bg-white)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
+                    <div>
+                      <div className="fw-700">POS-001 <span className="text-muted fw-400">| Santiago → Antofagasta</span></div>
+                      <div className="fs-12 text-muted mt-1">Hoy, 08:00 hrs</div>
+                    </div>
+                    <span className="badge ok">Confirmado</span>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={() => setSelectedPersona(null)}>Cerrar</button>
+                <button className="btn btn-primary">Asignar Nueva Postura</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
