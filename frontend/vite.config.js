@@ -10,11 +10,13 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'PlussChile SGO',
-        short_name: 'PlussChile',
-        description: 'Sistema de Gestión Operativa - PlussChile',
-        theme_color: '#0D1B3E',
-        background_color: '#f3f4f6',
+        short_name: 'SGO',
+        description: 'Sistema de Gestión Operacional - PlussChile',
+        // Alineado con el design system v4: chrome neutro, sin navy.
+        theme_color: '#FFFFFF',
+        background_color: '#F5F5F5',
         display: 'standalone',
+        orientation: 'portrait-primary',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -30,4 +32,15 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    // En producción Vercel reescribe /api al backend (ver vercel.json).
+    // En local hay que hacer lo mismo o axios pega contra el server de
+    // Vite y devuelve 404 en vez de los datos de Django.
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

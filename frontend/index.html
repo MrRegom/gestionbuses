@@ -1,10 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- viewport-fit=cover es obligatorio para que env(safe-area-inset-*)
+         devuelva valores reales en iPhone con notch. Sin esto, el topbar
+         y el bottom nav quedan bajo la barra del sistema. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Comportamiento de app instalada -->
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SGO" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <meta name="description" content="Sistema de Gestión Operacional de flota — PlussChile" />
+    <title>SGO · PlussChile</title>
   </head>
   <body>
     <div id="root"></div>
