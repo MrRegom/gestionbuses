@@ -503,6 +503,7 @@ input, select, textarea { font-family: var(--font); }
 
   .main {
     padding: 16px;
+    margin-left: 0;
   }
 }
 
