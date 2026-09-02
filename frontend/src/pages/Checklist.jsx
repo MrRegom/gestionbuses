@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import axios from 'axios';
+import axios from '../api';
+import { useAuth } from '../context/AuthContext';
 import {
   ClipboardCheck, Check, X, Minus, AlertTriangle, AlertCircle,
   RefreshCw, ChevronRight, ShieldAlert, ArrowLeft, Play,
@@ -17,12 +18,12 @@ const OPCIONES = [
 ];
 
 /* ── Pantalla de inicio: elegir bus, tripulante y momento ───── */
-function Inicio({ buses, personas, posturas, onIniciar, iniciando, error }) {
+function Inicio({ buses, posturas, quien, onIniciar, iniciando, error }) {
   const [form, setForm] = useState({
-    bus_id: '', persona_id: '', momento: 'SALIDA', postura_id: '',
+    bus_id: '', momento: 'SALIDA', postura_id: '',
   });
 
-  const puedeIniciar = form.bus_id && form.persona_id && form.momento;
+  const puedeIniciar = form.bus_id && form.momento;
 
   return (
     <div className="card">
@@ -53,20 +54,11 @@ function Inicio({ buses, personas, posturas, onIniciar, iniciando, error }) {
           </select>
         </div>
 
-        {/* Mientras no exista login, quien revisa se elige a mano. Con
-            autenticación este campo desaparece y se toma de la sesión. */}
+        {/* Quien revisa es el usuario en sesión: el backend ignora
+            cualquier persona que mande el cliente. */}
         <div className="form-group">
-          <label className="form-label" htmlFor="chk-persona">Realiza la revisión</label>
-          <select
-            id="chk-persona" className="form-input form-select"
-            value={form.persona_id}
-            onChange={e => setForm({ ...form, persona_id: e.target.value })}
-          >
-            <option value="">Seleccione el tripulante…</option>
-            {personas.map(p => (
-              <option key={p.id} value={p.id}>{p.nombre} · {p.rol}</option>
-            ))}
-          </select>
+          <label className="form-label">Realiza la revisión</label>
+          <div className="info-box">{quien}</div>
         </div>
 
         <div className="form-group">
@@ -170,9 +162,9 @@ function Resultado({ resultado, onNuevo }) {
 
 /* ── Página ─────────────────────────────────────────────────── */
 export default function Checklist() {
+  const { sesion } = useAuth();
   const [plantilla, setPlantilla] = useState([]);
   const [buses, setBuses] = useState([]);
-  const [personas, setPersonas] = useState([]);
   const [posturas, setPosturas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -188,15 +180,13 @@ export default function Checklist() {
     setLoading(true);
     setError(null);
     try {
-      const [rPlantilla, rBuses, rPersonas, rPosturas] = await Promise.all([
+      const [rPlantilla, rBuses, rPosturas] = await Promise.all([
         axios.get('/api/mantencion/checklist/plantilla/'),
         axios.get('/api/flota/buses/'),
-        axios.get('/api/operaciones/tripulacion/'),
         axios.get('/api/operaciones/posturas/'),
       ]);
       setPlantilla(rPlantilla.data);
       setBuses(rBuses.data);
-      setPersonas(rPersonas.data);
       setPosturas(rPosturas.data);
     } catch (err) {
       console.error(err);
@@ -228,7 +218,6 @@ export default function Checklist() {
     try {
       const { data } = await axios.post('/api/mantencion/checklist/', {
         bus_id: form.bus_id,
-        persona_id: form.persona_id,
         momento: form.momento,
         postura_id: form.postura_id || null,
       });
@@ -323,7 +312,7 @@ export default function Checklist() {
 
       {!resultado && !checklist && (
         <Inicio
-          buses={buses} personas={personas} posturas={posturas}
+          buses={buses} posturas={posturas} quien={sesion.nombre}
           onIniciar={iniciar} iniciando={iniciando} error={formError}
         />
       )}

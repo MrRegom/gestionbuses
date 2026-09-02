@@ -3,6 +3,22 @@ import {
   Bus, AlertTriangle, ClipboardCheck, Wrench, Shield, Radio,
 } from 'lucide-react';
 
+/* Perfiles del sistema (README §3). Deben coincidir con
+   Persona.Rol del backend. */
+export const ROLES = {
+  JEFE_OPERACIONES: 'JEFE_OPERACIONES',
+  JEFE_MECANICOS: 'JEFE_MECANICOS',
+  MONITOREO: 'MONITOREO',
+  CONDUCTOR: 'CONDUCTOR',
+  ASISTENTE: 'ASISTENTE',
+  MECANICO: 'MECANICO',
+};
+
+const OPERACIONES = [ROLES.JEFE_OPERACIONES, ROLES.MONITOREO];
+const TALLER = [ROLES.JEFE_MECANICOS, ROLES.MECANICO];
+const TRIPULACION = [ROLES.CONDUCTOR, ROLES.ASISTENTE];
+const TODOS = [...OPERACIONES, ...TALLER, ...TRIPULACION];
+
 /**
  * Fuente única de verdad de la navegación.
  *
@@ -29,6 +45,7 @@ export const NAV_GROUPS = [
         title: 'Dashboard Operativo',
         subtitle: 'Resumen en tiempo real',
         ready: true,
+        roles: TODOS,
       },
       {
         id: 'planificacion',
@@ -39,6 +56,7 @@ export const NAV_GROUPS = [
         title: 'Planificación de Posturas',
         subtitle: 'Gestión de viajes y asignación de recursos',
         ready: true,
+        roles: OPERACIONES,
       },
       {
         id: 'corridas',
@@ -49,6 +67,7 @@ export const NAV_GROUPS = [
         title: 'Gestión de Corridas',
         subtitle: 'Reasignación de recursos ante fallas',
         ready: false,
+        roles: OPERACIONES,
       },
       {
         id: 'rastreo',
@@ -59,6 +78,7 @@ export const NAV_GROUPS = [
         title: 'Rastreo y Asistencia',
         subtitle: 'Monitoreo GPS y control de incidentes',
         ready: true,
+        roles: [...OPERACIONES, ...TALLER],
       },
     ],
   },
@@ -74,6 +94,7 @@ export const NAV_GROUPS = [
         title: 'Gestión de Flota',
         subtitle: 'Inventario de buses y mantenimiento',
         ready: true,
+        roles: [...OPERACIONES, ...TALLER],
       },
       {
         id: 'conductores',
@@ -84,6 +105,7 @@ export const NAV_GROUPS = [
         title: 'Gestión de Tripulación',
         subtitle: 'Conductores y asistentes — asignación de posturas',
         ready: true,
+        roles: OPERACIONES,
       },
     ],
   },
@@ -99,6 +121,7 @@ export const NAV_GROUPS = [
         title: 'Incidentes en Ruta',
         subtitle: 'Fallas reportadas por la tripulación',
         ready: true,
+        roles: TODOS,
       },
       {
         id: 'checklist',
@@ -109,6 +132,7 @@ export const NAV_GROUPS = [
         title: 'Checklist Digital',
         subtitle: 'Revisión de salida y recepción de buses',
         ready: true,
+        roles: [...TRIPULACION, ...TALLER],
       },
       {
         id: 'mantenimiento',
@@ -119,6 +143,7 @@ export const NAV_GROUPS = [
         title: 'Taller y Mantenimiento',
         subtitle: 'Bandeja de fallas y órdenes de trabajo',
         ready: true,
+        roles: TALLER,
       },
     ],
   },
@@ -134,6 +159,7 @@ export const NAV_GROUPS = [
         title: 'Reportes y Auditoría',
         subtitle: 'Métricas de rendimiento e indicadores',
         ready: true,
+        roles: OPERACIONES,
       },
     ],
   },
@@ -147,6 +173,25 @@ export const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
  * quinto slot lo ocupa el botón "Más", que abre el menú completo.
  */
 export const BOTTOM_NAV_IDS = ['dashboard', 'planificacion', 'flota', 'conductores'];
+
+/** Grupos visibles para un rol, sin los grupos que quedan vacíos. */
+export function navParaRol(rol) {
+  return NAV_GROUPS
+    .map(g => ({ ...g, items: g.items.filter(i => i.roles.includes(rol)) }))
+    .filter(g => g.items.length > 0);
+}
+
+/** ¿Este perfil puede entrar a esta ruta? */
+export function puedeAcceder(rol, pathname) {
+  const item = NAV_ITEMS.find(i => i.path === pathname);
+  return item ? item.roles.includes(rol) : true;
+}
+
+/** Primera ruta disponible para el rol: a dónde mandar tras el login. */
+export function rutaInicial(rol) {
+  const grupos = navParaRol(rol);
+  return grupos[0]?.items[0]?.path ?? '/';
+}
 
 /** Metadatos de la ruta activa, para el título del topbar. */
 export function findNavItem(pathname) {

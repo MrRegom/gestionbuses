@@ -1,5 +1,9 @@
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { puedeAcceder, rutaInicial } from './config/navigation';
+
 import Layout from './components/Layout';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Flota from './pages/Flota';
 import Conductores from './pages/Conductores';
@@ -10,34 +14,71 @@ import Reportes from './pages/Reportes';
 import Checklist from './pages/Checklist';
 import Incidentes from './pages/Incidentes';
 import EnConstruccion from './pages/EnConstruccion';
+import SinAcceso from './pages/SinAcceso';
 
-function App() {
+/**
+ * Guarda de ruta por perfil.
+ *
+ * Es una comodidad de interfaz, no la barrera de seguridad: quien
+ * corresponde decidir es el backend, que valida el rol en cada
+ * endpoint. Aquí solo se evita mostrar pantallas que igualmente
+ * devolverían 403.
+ */
+function Protegida({ children }) {
+  const { sesion } = useAuth();
+  const { pathname } = useLocation();
+
+  if (!puedeAcceder(sesion.rol, pathname)) return <SinAcceso />;
+  return children;
+}
+
+function Aplicacion() {
+  const { sesion, cargando } = useAuth();
+
+  if (cargando) {
+    return (
+      <div className="boot-shell">
+        <span className="spinner" />
+        <span>Comprobando sesión…</span>
+      </div>
+    );
+  }
+
+  if (!sesion) return <Login />;
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="planificacion" element={<Planificacion />} />
-          <Route path="conductores" element={<Conductores />} />
-          <Route path="flota" element={<Flota />} />
-          <Route path="rastreo" element={<Rastreo />} />
-          <Route path="mantenimiento" element={<Mantenimiento />} />
-          <Route path="auditoria" element={<Reportes />} />
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Protegida><Dashboard /></Protegida>} />
+        <Route path="planificacion" element={<Protegida><Planificacion /></Protegida>} />
+        <Route path="conductores" element={<Protegida><Conductores /></Protegida>} />
+        <Route path="flota" element={<Protegida><Flota /></Protegida>} />
+        <Route path="rastreo" element={<Protegida><Rastreo /></Protegida>} />
+        <Route path="mantenimiento" element={<Protegida><Mantenimiento /></Protegida>} />
+        <Route path="auditoria" element={<Protegida><Reportes /></Protegida>} />
+        <Route path="incidentes" element={<Protegida><Incidentes /></Protegida>} />
+        <Route path="checklist" element={<Protegida><Checklist /></Protegida>} />
 
-          {/* Módulos de la hoja de ruta: el menú ya los ofrece, así que
-              necesitan una ruta real o la pantalla queda en blanco. */}
-          <Route path="incidentes" element={<Incidentes />} />
-          <Route path="checklist" element={<Checklist />} />
+        {/* Pendiente en la hoja de ruta */}
+        <Route path="corridas" element={<Protegida><EnConstruccion /></Protegida>} />
 
-          {/* Pendiente en la hoja de ruta */}
-          <Route path="corridas" element={<EnConstruccion />} />
+        {/* Cualquier URL desconocida cae aquí en vez de mostrar nada. */}
+        <Route path="*" element={<EnConstruccion />} />
+      </Route>
 
-          {/* Cualquier URL desconocida cae aquí en vez de mostrar nada. */}
-          <Route path="*" element={<EnConstruccion />} />
-        </Route>
-      </Routes>
-    </Router>
+      {/* Si alguien queda en /login con sesión abierta, se le manda a
+          la primera pantalla que su perfil puede ver. */}
+      <Route path="/login" element={<Navigate to={rutaInicial(sesion.rol)} replace />} />
+    </Routes>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Aplicacion />
+      </AuthProvider>
+    </Router>
+  );
+}

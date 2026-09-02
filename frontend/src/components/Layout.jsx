@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, LogOut, MoreHorizontal } from 'lucide-react';
-import { NAV_GROUPS, NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem } from '../config/navigation';
+import { NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem, navParaRol } from '../config/navigation';
+import { useAuth } from '../context/AuthContext';
 
 /** Punto de quiebre donde el sidebar pasa a ser drawer. Debe coincidir
  *  con el @media (max-width: 1024px) de index.css. */
@@ -9,6 +10,7 @@ const DRAWER_BREAKPOINT = 1024;
 
 export default function Layout() {
   const location = useLocation();
+  const { sesion, logout } = useAuth();
 
   /* El drawer guarda la ruta en la que se abrió, en vez de un booleano
      suelto. Así "abierto" se deriva de la ruta actual: al navegar —con
@@ -53,9 +55,13 @@ export default function Layout() {
     return () => document.body.classList.remove('no-scroll');
   }, [drawerOpen]);
 
+  // El menú se arma según el perfil: un conductor no ve Planificación.
+  const grupos = navParaRol(sesion.rol);
+  const permitidos = new Set(grupos.flatMap(g => g.items.map(i => i.id)));
+
   const bottomItems = BOTTOM_NAV_IDS
     .map(id => NAV_ITEMS.find(i => i.id === id))
-    .filter(Boolean);
+    .filter(i => i && permitidos.has(i.id));
 
   return (
     <div className="app-shell">
@@ -98,7 +104,10 @@ export default function Layout() {
           <button className="btn-icon-top" title="Notificaciones" aria-label="Notificaciones">
             <Bell size={18} />
           </button>
-          <button className="btn-icon-top" title="Cerrar sesión" aria-label="Cerrar sesión">
+          <button
+            className="btn-icon-top" title="Cerrar sesión" aria-label="Cerrar sesión"
+            onClick={logout}
+          >
             <LogOut size={18} />
           </button>
         </div>
@@ -123,7 +132,7 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav">
-          {NAV_GROUPS.map(group => (
+          {grupos.map(group => (
             <div key={group.label}>
               <div className="nav-group-label">{group.label}</div>
               {group.items.map(item => {
@@ -148,12 +157,12 @@ export default function Layout() {
 
         <div className="sidebar-user">
           <div className="user-avatar">
-            FO
+            {sesion.nombre.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()}
             <span className="user-online" />
           </div>
           <div className="user-meta">
-            <div className="user-name">Felipe Operaciones</div>
-            <div className="user-role">Jefe de Operaciones</div>
+            <div className="user-name">{sesion.nombre}</div>
+            <div className="user-role">{sesion.rol_label}</div>
           </div>
         </div>
       </aside>

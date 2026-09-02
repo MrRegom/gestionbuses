@@ -7,6 +7,11 @@ class Persona(models.Model):
         # El personal de taller también es Persona: comparte RUT y nombre,
         # y así una orden de trabajo puede apuntar a quien la ejecuta.
         MECANICO = 'MECANICO', 'Mecánico'
+        # Perfiles de mando y monitoreo (README §3). No conducen ni
+        # reparan, pero necesitan cuenta para operar el sistema.
+        JEFE_OPERACIONES = 'JEFE_OPERACIONES', 'Jefe de Operaciones'
+        JEFE_MECANICOS = 'JEFE_MECANICOS', 'Jefe de Mecánicos'
+        MONITOREO = 'MONITOREO', 'Sala de Monitoreo'
 
     class Tipo(models.TextChoices):
         TITULAR = 'TITULAR', 'Titular'
@@ -17,6 +22,12 @@ class Persona(models.Model):
         AMARILLO = 'amarillo', 'Amarillo'
         ROJO = 'rojo', 'Rojo'
 
+    # Vincula la persona del dominio con su cuenta de acceso. Nulo
+    # mientras alguien no tenga login (ej. un asistente sin celular).
+    usuario = models.OneToOneField(
+        'auth.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='persona',
+    )
     rut = models.CharField(max_length=15, unique=True)
     nombre = models.CharField(max_length=150)
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.CONDUCTOR)

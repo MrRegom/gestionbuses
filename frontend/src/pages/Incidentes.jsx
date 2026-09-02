@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import axios from 'axios';
+import axios from '../api';
+import { useAuth } from '../context/AuthContext';
 import {
   AlertTriangle, AlertCircle, Plus, RefreshCw, X,
   ClipboardCheck, Radio, CheckCircle2, ShieldAlert,
@@ -24,12 +25,12 @@ const ORIGEN = {
   RUTA:      { Icon: Radio,          label: 'En ruta' },
 };
 
-const FORM_VACIO = { bus_id: '', persona_id: '', descripcion: '', gravedad: 'MEDIA', postura_id: '' };
+const FORM_VACIO = { bus_id: '', descripcion: '', gravedad: 'MEDIA', postura_id: '' };
 
 export default function Incidentes() {
+  const { sesion } = useAuth();
   const [incidentes, setIncidentes] = useState([]);
   const [buses, setBuses] = useState([]);
-  const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [soloAbiertos, setSoloAbiertos] = useState(false);
@@ -43,14 +44,12 @@ export default function Incidentes() {
     setLoading(true);
     setError(null);
     try {
-      const [rInc, rBuses, rPersonas] = await Promise.all([
+      const [rInc, rBuses] = await Promise.all([
         axios.get('/api/mantencion/incidentes/'),
         axios.get('/api/flota/buses/'),
-        axios.get('/api/operaciones/tripulacion/'),
       ]);
       setIncidentes(rInc.data);
       setBuses(rBuses.data);
-      setPersonas(rPersonas.data);
     } catch (err) {
       console.error(err);
       setError('No se pudieron cargar los incidentes.');
@@ -84,7 +83,6 @@ export default function Incidentes() {
     try {
       await axios.post('/api/mantencion/incidentes/', {
         bus_id: form.bus_id,
-        persona_id: form.persona_id,
         descripcion: form.descripcion,
         gravedad: form.gravedad,
         postura_id: form.postura_id || null,
@@ -302,18 +300,11 @@ export default function Incidentes() {
                   </select>
                 </div>
 
+                {/* Quien reporta es el usuario en sesión; el backend
+                    ignora cualquier persona enviada por el cliente. */}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="inc-persona">Reporta</label>
-                  <select
-                    id="inc-persona" className="form-input form-select" required
-                    value={form.persona_id}
-                    onChange={ev => setForm({ ...form, persona_id: ev.target.value })}
-                  >
-                    <option value="">Seleccione el tripulante…</option>
-                    {personas.map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre}</option>
-                    ))}
-                  </select>
+                  <label className="form-label">Reporta</label>
+                  <div className="info-box">{sesion.nombre}</div>
                 </div>
 
                 <div className="form-group">

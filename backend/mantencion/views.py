@@ -2,6 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
+from core.permissions import (
+    RolPermitido, SoloLecturaMonitoreo, TALLER, TODOS, persona_de,
+)
+
 from flota.serializers import BusSerializer
 from operaciones.serializers import PersonaSerializer
 
@@ -15,6 +19,8 @@ from .serializers import (
 # ── PLANTILLA ────────────────────────────────────────────────
 class PlantillaChecklistView(APIView):
     """Categorías e ítems que debe responder la tripulación."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
 
     def get(self, request):
         categorias = ChecklistService.get_plantilla()
@@ -24,6 +30,8 @@ class PlantillaChecklistView(APIView):
 
 # ── CHECKLIST ────────────────────────────────────────────────
 class ChecklistListCreateView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
     def get(self, request):
         checklists = ChecklistService.get_todos()
 
@@ -36,9 +44,11 @@ class ChecklistListCreateView(APIView):
 
     def post(self, request):
         try:
+            # La persona sale de la sesión: aceptar un persona_id del
+            # cliente permitiría revisar en nombre de otro.
             checklist = ChecklistService.iniciar(
                 bus_id=request.data.get('bus_id'),
-                persona_id=request.data.get('persona_id'),
+                persona_id=persona_de(request).id,
                 momento=request.data.get('momento'),
                 postura_id=request.data.get('postura_id'),
             )
@@ -50,6 +60,8 @@ class ChecklistListCreateView(APIView):
 
 
 class ChecklistDetailView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
     def get(self, request, pk):
         try:
             checklist = ChecklistService.get_by_id(pk)
@@ -63,6 +75,8 @@ class ChecklistDetailView(APIView):
 class ChecklistResponderView(APIView):
     """Registra la respuesta de un ítem. Idempotente: volver a enviar el
     mismo ítem corrige la respuesta en vez de duplicarla."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
 
     def post(self, request, pk):
         try:
@@ -83,6 +97,8 @@ class ChecklistResponderView(APIView):
 class ChecklistCompletarView(APIView):
     """Cierra el checklist: genera los incidentes de cada falla y ajusta
     el estado del bus."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
 
     def post(self, request, pk):
         try:
@@ -99,6 +115,8 @@ class ChecklistCompletarView(APIView):
 
 # ── INCIDENTES ───────────────────────────────────────────────
 class IncidenteListCreateView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
     def get(self, request):
         if request.query_params.get('abiertos') == 'true':
             incidentes = IncidenteService.get_abiertos()
@@ -110,9 +128,10 @@ class IncidenteListCreateView(APIView):
 
     def post(self, request):
         try:
+            # Quien reporta es quien tiene la sesión abierta.
             incidente = IncidenteService.reportar_en_ruta(
                 bus_id=request.data.get('bus_id'),
-                persona_id=request.data.get('persona_id'),
+                persona_id=persona_de(request).id,
                 descripcion=request.data.get('descripcion', ''),
                 gravedad=request.data.get('gravedad', 'MEDIA'),
                 postura_id=request.data.get('postura_id'),
@@ -125,6 +144,8 @@ class IncidenteListCreateView(APIView):
 
 
 class IncidenteEstadoView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
     def post(self, request, pk):
         try:
             incidente = IncidenteService.cambiar_estado(
@@ -142,6 +163,8 @@ class TableroView(APIView):
     """Todo lo que el jefe de mecánicos necesita en una sola llamada:
     la bandeja de fallas sin triar, el kanban de órdenes y los mecánicos
     disponibles para asignar."""
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
 
     def get(self, request):
         return Response({
@@ -152,6 +175,8 @@ class TableroView(APIView):
 
 
 class OrdenListCreateView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
     def get(self, request):
         ordenes = TallerService.get_ordenes()
         estado = request.query_params.get('estado')
@@ -187,6 +212,8 @@ class OrdenListCreateView(APIView):
 
 
 class OrdenAsignarView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
     def post(self, request, pk):
         try:
             orden = TallerService.asignar(
@@ -201,6 +228,8 @@ class OrdenAsignarView(APIView):
 
 
 class OrdenIniciarView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
     def post(self, request, pk):
         try:
             orden = TallerService.iniciar(pk)
@@ -211,6 +240,8 @@ class OrdenIniciarView(APIView):
 
 
 class OrdenCompletarView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
     def post(self, request, pk):
         try:
             orden = TallerService.completar(pk, request.data.get('diagnostico', ''))
@@ -222,6 +253,8 @@ class OrdenCompletarView(APIView):
 
 class BusLiberarView(APIView):
     """Devuelve el bus a la flota. Falla si le queda trabajo abierto."""
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
 
     def post(self, request, pk):
         try:
@@ -233,6 +266,8 @@ class BusLiberarView(APIView):
 
 
 class BusNoOperativoView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
     def post(self, request, pk):
         try:
             bus = TallerService.marcar_no_operativo(pk, request.data.get('motivo', ''))

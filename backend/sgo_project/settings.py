@@ -154,10 +154,45 @@ MAILERS = {
     },
 }
 
-# Configuración CORS y DRF
-CORS_ALLOW_ALL_ORIGINS = True
+# ── CORS ────────────────────────────────────────────────────────
+# En producción el frontend y la API comparten origen (vercel.json
+# reescribe /api al backend) y en local el proxy de Vite hace lo mismo,
+# así que CORS casi no entra en juego. Se declara igual para quien
+# levante el frontend sin proxy.
+#
+# CORS_ALLOW_ALL_ORIGINS se retiró: con credenciales el navegador
+# rechaza el comodín, y permitir cualquier origen con cookies de sesión
+# habilita robo de sesión desde un sitio de terceros.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Orígenes de confianza para el token CSRF.
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://gestionbuses.vercel.app',
+    'https://*.vercel.app',
+]
+
+# El SPA lee la cookie CSRF con JavaScript para reenviarla en la
+# cabecera, así que no puede ser HttpOnly. La cookie de sesión sí lo es
+# (por defecto), que es la que realmente autentica.
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# ── DRF ─────────────────────────────────────────────────────────
+# Autenticación por sesión: el frontend es same-origin, así que la
+# cookie viaja sola y no hay que guardar un token en localStorage.
+# Todo endpoint exige sesión salvo que declare AllowAny.
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
-    ]
+        'core.permissions.TienePersona',
+    ],
 }
