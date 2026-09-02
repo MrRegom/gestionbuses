@@ -952,16 +952,16 @@ tbody tr.clickable { cursor: pointer; }
 }
 .modal-overlay.open .modal { transform: none; }
 
-/* En mobile el modal ocupa todo el ancho disponible */
-@media (max-width: 600px) {
+/* En mobile el modal ocupa todo el ancho disponible y aparece ARRIBA */
+@media (max-width: 768px) {
   .modal-overlay {
-    padding: var(--sp-3);
-    align-items: flex-start;
-    padding-top: 72px; /* deja espacio para el topbar */
+    padding: 12px 12px 24px 12px;
+    align-items: flex-start !important;
   }
   .modal {
-    max-height: calc(100dvh - 88px);
+    max-height: calc(100dvh - 24px);
     border-radius: var(--r-lg);
+    margin: 0;
   }
 }
 
