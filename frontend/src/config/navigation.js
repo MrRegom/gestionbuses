@@ -98,7 +98,7 @@ export const NAV_GROUPS = [
         icon: AlertTriangle,
         title: 'Incidentes en Ruta',
         subtitle: 'Fallas reportadas por la tripulación',
-        ready: false,
+        ready: true,
       },
       {
         id: 'checklist',
@@ -108,7 +108,7 @@ export const NAV_GROUPS = [
         icon: ClipboardCheck,
         title: 'Checklist Digital',
         subtitle: 'Revisión de salida y recepción de buses',
-        ready: false,
+        ready: true,
       },
       {
         id: 'mantenimiento',

@@ -1233,6 +1233,89 @@ tbody tr.clickable { cursor: pointer; }
 .info-box.danger { background: var(--danger-bg); border-color: var(--danger-border); }
 
 /* ═══════════════════════════════════════════════════════════
+   14c · CHECKLIST
+   ------------------------------------------------------------
+   Pensado para el pulgar: cada opción es un blanco de 44px y en
+   teléfono los tres botones ocupan el ancho completo.
+   ═══════════════════════════════════════════════════════════ */
+.chk-item {
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.chk-item:last-child { border-bottom: none; }
+
+.chk-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.chk-item-label {
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* Marca de ítem crítico: su falla deja el bus fuera de servicio */
+.chk-critico {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.chk-opciones {
+  display: flex;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+}
+
+.chk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-white);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.chk-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.chk-btn.ok.sel {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--ok-text);
+  font-weight: 600;
+}
+.chk-btn.danger.sel {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  font-weight: 600;
+}
+.chk-btn.neutral.sel {
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════
    15 · PROGRESO Y BARRAS
    ═══════════════════════════════════════════════════════════ */
 .progress-track {
@@ -1487,6 +1570,13 @@ tbody tr.clickable { cursor: pointer; }
   .page-header:not(:has(.page-actions)) { display: none; }
   .page-actions { width: 100%; }
   .page-actions .btn { flex: 1; height: 36px; }
+
+  /* Checklist: en teléfono el ítem va arriba y los tres botones
+     ocupan el ancho, para responder con el pulgar sin apuntar. */
+  .chk-item { padding: var(--sp-3) var(--sp-4); }
+  .chk-item-head { flex-direction: column; align-items: stretch; gap: var(--sp-3); }
+  .chk-opciones { width: 100%; gap: var(--sp-2); }
+  .chk-btn { flex: 1; height: 44px; font-size: 13px; }
 
   .kpi-row { grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--sp-2); }
   /* Un KPI impar al final ocuparía media fila y se vería descolgado:

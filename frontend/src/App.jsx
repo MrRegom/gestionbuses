@@ -7,6 +7,8 @@ import Planificacion from './pages/Planificacion';
 import Rastreo from './pages/Rastreo';
 import Mantenimiento from './pages/Mantenimiento';
 import Reportes from './pages/Reportes';
+import Checklist from './pages/Checklist';
+import Incidentes from './pages/Incidentes';
 import EnConstruccion from './pages/EnConstruccion';
 
 function App() {
@@ -24,9 +26,11 @@ function App() {
 
           {/* Módulos de la hoja de ruta: el menú ya los ofrece, así que
               necesitan una ruta real o la pantalla queda en blanco. */}
+          <Route path="incidentes" element={<Incidentes />} />
+          <Route path="checklist" element={<Checklist />} />
+
+          {/* Pendiente en la hoja de ruta */}
           <Route path="corridas" element={<EnConstruccion />} />
-          <Route path="incidentes" element={<EnConstruccion />} />
-          <Route path="checklist" element={<EnConstruccion />} />
 
           {/* Cualquier URL desconocida cae aquí en vez de mostrar nada. */}
           <Route path="*" element={<EnConstruccion />} />

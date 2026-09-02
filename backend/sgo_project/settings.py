@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'flota',
     'operaciones',
     'reportes',
+    'mantencion',
 ]
 
 MIDDLEWARE = [
@@ -135,6 +136,11 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
+
+# Las migraciones existentes se generaron con BigAutoField. Sin este
+# ajuste Django asume AutoField y propone degradar todas las claves
+# primarias, además de emitir los avisos models.W042.
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 STATIC_URL = 'static/'
 
