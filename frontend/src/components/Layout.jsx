@@ -1,8 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, CalendarClock, Users, Navigation, 
-  Bus, AlertTriangle, CheckSquare, Wrench, Shield, LogOut 
+  Bus, AlertTriangle, CheckSquare, Wrench, Shield, LogOut, Menu, X 
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 const MENU_ITEMS = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -18,16 +19,28 @@ const MENU_ITEMS = [
 
 export default function Layout() {
   const location = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   return (
-    <>
-      <aside className="sidebar">
+    <div className="layout">
+      {isMobileMenuOpen && (
+        <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="logo-mark">P+</div>
           <div>
             <div className="logo-name">PlussChile</div>
             <div className="logo-sub">Sistema Operacional</div>
           </div>
+          <button className="mobile-close-btn" onClick={() => setIsMobileMenuOpen(false)}>
+            <X size={20} />
+          </button>
         </div>
         <nav className="sidebar-nav">
           <div className="nav-group-label">Operaciones</div>
@@ -56,9 +69,14 @@ export default function Layout() {
 
       <main className="main">
         <header className="topbar">
-          <div>
-            <span className="topbar-page-title">SGO Portal</span>
-            <span className="topbar-page-sub">— Gestión de Operaciones</span>
+          <div className="topbar-left">
+            <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <span className="topbar-page-title">SGO Portal</span>
+              <span className="topbar-page-sub">— Gestión de Operaciones</span>
+            </div>
           </div>
           <div className="topbar-right">
             <div className="live-indicator"><div className="live-dot"></div>En vivo</div>
