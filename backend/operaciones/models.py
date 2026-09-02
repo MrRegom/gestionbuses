@@ -85,14 +85,14 @@ class Postura(models.Model):
         COMPLETA = 'COMPLETA', 'Completa'
 
     # Código operativo con el que la empresa identifica el servicio.
-    # En la planilla actual es numérico de 6 dígitos (ej. 112218); se
-    # deja como texto para no perder ceros a la izquierda ni cerrar la
-    # puerta a otro formato más adelante.
+    # Confirmado con Operaciones: numérico de seis dígitos (ej. 112218).
+    # Se guarda como texto para no perder ceros a la izquierda; si algún
+    # día aparece otro largo, el cambio es este regex y nada más.
     codigo = models.CharField(
         max_length=20, unique=True,
         validators=[RegexValidator(
-            r'^\d{4,8}$',
-            'El código de postura debe ser numérico, de 4 a 8 dígitos (ej. 112218).',
+            r'^\d{6}$',
+            'El código de postura son seis dígitos numéricos (ej. 112218).',
         )],
     )
     ruta = models.ForeignKey(Ruta, on_delete=models.RESTRICT)

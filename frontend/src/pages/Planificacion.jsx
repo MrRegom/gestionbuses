@@ -600,12 +600,12 @@ export default function Planificacion() {
                   <label className="form-label" htmlFor="codigo">Código de la postura</label>
                   <input
                     id="codigo" type="text" className="form-input mono" required
-                    inputMode="numeric" pattern="\d{4,8}" maxLength={8}
+                    inputMode="numeric" pattern="\d{6}" maxLength={6}
                     value={form.codigo}
                     onChange={e => setForm({ ...form, codigo: e.target.value })}
                     placeholder="112218"
                   />
-                  <p className="fs-12 text-muted">Numérico, el mismo que usa la planilla de operaciones.</p>
+                  <p className="fs-12 text-muted">Seis dígitos, el mismo que usa la planilla de operaciones.</p>
                 </div>
 
                 <div className="form-group">
