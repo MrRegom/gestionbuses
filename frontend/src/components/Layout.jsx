@@ -27,10 +27,32 @@ export default function Layout() {
 
   return (
     <div className="layout">
+      {/* Topbar siempre arriba (fixed en mobile) */}
+      <header className="topbar">
+        <div className="topbar-left">
+          <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
+            <Menu size={24} />
+          </button>
+          <div>
+            <span className="topbar-page-title">SGO Portal</span>
+            <span className="topbar-page-sub">— Gestión de Operaciones</span>
+          </div>
+        </div>
+        <div className="topbar-right">
+          <div className="live-indicator"><div className="live-dot"></div>En vivo</div>
+          <div className="date-chip">📅 {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</div>
+          <button className="btn-icon-top" title="Cerrar sesión" style={{ color: 'var(--danger-text)' }}>
+            <LogOut size={16} />
+          </button>
+        </div>
+      </header>
+
+      {/* Overlay de fondo oscuro al abrir menu en mobile */}
       {isMobileMenuOpen && (
         <div className="mobile-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
+      {/* Sidebar - en mobile sale desde la izquierda debajo del topbar */}
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <div className="logo-mark">P+</div>
@@ -67,26 +89,8 @@ export default function Layout() {
         </div>
       </aside>
 
+      {/* Contenido principal */}
       <main className="main">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)}>
-              <Menu size={24} />
-            </button>
-            <div>
-              <span className="topbar-page-title">SGO Portal</span>
-              <span className="topbar-page-sub">— Gestión de Operaciones</span>
-            </div>
-          </div>
-          <div className="topbar-right">
-            <div className="live-indicator"><div className="live-dot"></div>En vivo</div>
-            <div className="date-chip">📅 Martes, 01 Sep 2026</div>
-            <button className="btn-icon-top" title="Cerrar sesión" style={{ color: 'var(--danger-text)' }}>
-              <LogOut size={16} />
-            </button>
-          </div>
-        </header>
-        
         <div className="page-content fade-in">
           <Outlet />
         </div>

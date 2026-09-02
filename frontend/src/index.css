@@ -308,11 +308,17 @@ input, select, textarea { font-family: var(--font); }
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /* En desktop el topbar está fuera del main, ocupa el ancho restante */
 }
 
 /* ── TOPBAR ──────────────────────────────────────────────────── */
 .topbar {
-  position: sticky; top: 0; z-index: 90;
+  position: fixed;
+  top: 0;
+  /* Desktop: respeta el ancho del sidebar */
+  left: var(--sidebar-w);
+  right: 0;
+  z-index: 90;
   background: var(--bg-white);
   border-bottom: 1px solid var(--border);
   height: 60px;
@@ -320,6 +326,11 @@ input, select, textarea { font-family: var(--font); }
   padding: 0 var(--sp-6);
   gap: var(--sp-4);
   box-shadow: var(--shadow-xs);
+}
+
+/* En desktop hay que empujar el contenido del main 60px para compensar el topbar fixed */
+.page-content {
+  padding-top: calc(60px + var(--sp-6));
 }
 
 .topbar-page-title {
@@ -488,13 +499,21 @@ input, select, textarea { font-family: var(--font); }
   .layout {
     grid-template-columns: 1fr;
   }
+
+  /* Topbar: fijo en la parte superior, z-index mayor que el sidebar */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    margin-left: 0;
+    z-index: 200;  /* siempre sobre el sidebar (z-index: 150) */
+  }
   
   .sidebar {
     position: fixed;
-    top: 0;
+    top: 60px;   /* empieza debajo del topbar */
     bottom: 0;
     left: -280px;
-    z-index: 50;
+    z-index: 150;
     transition: left 0.3s ease;
   }
   
@@ -502,21 +521,26 @@ input, select, textarea { font-family: var(--font); }
     left: 0;
   }
 
-  .mobile-menu-btn, .mobile-close-btn {
+  .mobile-overlay {
     display: block;
+    position: fixed;
+    top: 60px;   /* el fondo oscuro también empieza bajo el topbar */
+    inset-block-end: 0;
+    left: 0; right: 0;
+    z-index: 140;
   }
 
-  .mobile-overlay {
+  .mobile-menu-btn, .mobile-close-btn {
     display: block;
   }
   
   .kpi-row {
-    grid-template-columns: 1fr;
+    flex-wrap: wrap;
   }
 
   .main {
-    padding: 16px;
     margin-left: 0;
+    padding-top: 60px;  /* espacio para el topbar fijo */
   }
 }
 
