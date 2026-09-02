@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import EscrituraPorRol, SoloLecturaMonitoreo, OPERACIONES
+from flota.serializers import BusSerializer
 
 from .services import TripulacionService
 from .serializers import PersonaSerializer
@@ -220,3 +221,70 @@ class PersonalDisponibleView(APIView):
             }
             for f in filas
         ], status=status.HTTP_200_OK)
+
+
+# ── CORRIDAS ─────────────────────────────────────────────────
+from core.permissions import persona_de  # noqa: E402
+from .services import CorridaService  # noqa: E402
+from .serializers import CorridaSerializer, PosturaResumenSerializer  # noqa: E402
+
+
+class CorridaTableroView(APIView):
+    """Todo lo que Operaciones necesita para gestionar una corrida:
+    buses caídos con sus servicios comprometidos, y el historial."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request):
+        caidos = [
+            {
+                'bus': BusSerializer(fila['bus']).data,
+                'posturas': PosturaResumenSerializer(fila['posturas'], many=True).data,
+            }
+            for fila in CorridaService.buses_caidos()
+        ]
+        return Response({
+            'caidos': caidos,
+            'corridas': CorridaSerializer(CorridaService.get_todas(), many=True).data,
+        }, status=status.HTTP_200_OK)
+
+
+class SustitutosView(APIView):
+    """Buses capaces de cubrir todas las posturas indicadas."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request):
+        ids = [i for i in request.query_params.get('posturas', '').split(',') if i]
+        buses = CorridaService.sustitutos_posibles(ids)
+        return Response(BusSerializer(buses, many=True).data, status=status.HTTP_200_OK)
+
+
+class CorridaCreateView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def post(self, request):
+        try:
+            corrida = CorridaService.crear(
+                bus_original_id=request.data.get('bus_original_id'),
+                bus_sustituto_id=request.data.get('bus_sustituto_id'),
+                motivo=request.data.get('motivo', ''),
+                persona=persona_de(request),
+                postura_ids=request.data.get('postura_ids'),
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CorridaSerializer(corrida).data, status=status.HTTP_201_CREATED)
+
+
+class CorridaCerrarView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def post(self, request, pk):
+        try:
+            corrida = CorridaService.cerrar(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CorridaSerializer(corrida).data, status=status.HTTP_200_OK)

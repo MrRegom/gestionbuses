@@ -7,6 +7,7 @@ from .views import (
     PosturaListCreateView, PosturaDetailView,
     AsignarTripulacionView, DesasignarTripulacionView,
     PosturaBusView, PersonalDisponibleView,
+    CorridaTableroView, SustitutosView, CorridaCreateView, CorridaCerrarView,
 )
 
 urlpatterns = [
@@ -28,6 +29,12 @@ urlpatterns = [
     path('posturas/<int:pk>/asignar/', AsignarTripulacionView.as_view(), name='postura-asignar'),
     path('posturas/<int:pk>/bus/', PosturaBusView.as_view(), name='postura-bus'),
     path('posturas/<int:pk>/disponibles/', PersonalDisponibleView.as_view(), name='postura-disponibles'),
+
+    # Corridas
+    path('corridas/tablero/', CorridaTableroView.as_view(), name='corrida-tablero'),
+    path('corridas/sustitutos/', SustitutosView.as_view(), name='corrida-sustitutos'),
+    path('corridas/', CorridaCreateView.as_view(), name='corrida-create'),
+    path('corridas/<int:pk>/cerrar/', CorridaCerrarView.as_view(), name='corrida-cerrar'),
 
     # Asignaciones
     path('asignaciones/<int:pk>/', DesasignarTripulacionView.as_view(), name='asignacion-detail'),

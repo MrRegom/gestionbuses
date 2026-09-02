@@ -66,7 +66,7 @@ export const NAV_GROUPS = [
         icon: Navigation,
         title: 'Gestión de Corridas',
         subtitle: 'Reasignación de recursos ante fallas',
-        ready: false,
+        ready: true,
         roles: OPERACIONES,
       },
       {

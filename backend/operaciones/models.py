@@ -111,3 +111,47 @@ class AsignacionTripulacion(models.Model):
 
     def __str__(self):
         return f"{self.persona.nombre} en {self.postura.codigo}"
+
+
+class Corrida(models.Model):
+    """Reemplazo de máquina cuando un bus se cae (README §2.5).
+
+    Una corrida es el retraso en cadena que se produce si un bus falla y
+    nadie reasigna sus servicios. Registrarla deja constancia de qué bus
+    sustituyó a cuál, por qué, y qué posturas se traspasaron.
+    """
+
+    class Estado(models.TextChoices):
+        ACTIVA = 'ACTIVA', 'Activa'
+        CERRADA = 'CERRADA', 'Cerrada'
+
+    bus_original = models.ForeignKey(
+        'flota.Bus', on_delete=models.PROTECT, related_name='corridas_como_original'
+    )
+    bus_sustituto = models.ForeignKey(
+        'flota.Bus', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='corridas_como_sustituto',
+        help_text='Nulo si aún no se consigue reemplazo',
+    )
+    motivo = models.TextField()
+    estado = models.CharField(
+        max_length=8, choices=Estado.choices, default=Estado.ACTIVA
+    )
+    creado_por = models.ForeignKey(
+        Persona, on_delete=models.PROTECT, related_name='corridas'
+    )
+    # Las posturas que se traspasaron del bus original al sustituto.
+    posturas = models.ManyToManyField(
+        Postura, related_name='corridas', blank=True
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    cerrado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Corrida'
+        verbose_name_plural = 'Corridas'
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        destino = self.bus_sustituto.numero if self.bus_sustituto else 'sin reemplazo'
+        return f'{self.bus_original.numero} → {destino}'

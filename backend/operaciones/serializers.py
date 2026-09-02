@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Persona, Ciudad, Ruta, Postura, AsignacionTripulacion
+from .models import Persona, Ciudad, Ruta, Postura, AsignacionTripulacion, Corrida
 from flota.serializers import BusSerializer
 
 class PersonaSerializer(serializers.ModelSerializer):
@@ -41,3 +41,27 @@ class PosturaSerializer(serializers.ModelSerializer):
         model = Postura
         fields = '__all__'
 
+
+
+class PosturaResumenSerializer(serializers.ModelSerializer):
+    """Versión ligera para listar posturas dentro de otra respuesta."""
+    ruta = RutaSerializer(read_only=True)
+    bus = BusSerializer(read_only=True)
+
+    class Meta:
+        model = Postura
+        fields = ['id', 'codigo', 'ruta', 'fecha', 'hora_salida', 'estado', 'bus']
+
+
+class CorridaSerializer(serializers.ModelSerializer):
+    bus_original = BusSerializer(read_only=True)
+    bus_sustituto = BusSerializer(read_only=True)
+    creado_por = PersonaSerializer(read_only=True)
+    posturas = PosturaResumenSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Corrida
+        fields = [
+            'id', 'bus_original', 'bus_sustituto', 'motivo', 'estado',
+            'creado_por', 'posturas', 'creado_en', 'cerrado_en',
+        ]

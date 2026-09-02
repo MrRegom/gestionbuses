@@ -1386,6 +1386,63 @@ tbody tr.clickable { cursor: pointer; }
 .fleet-bar-seg { border-radius: var(--r-full); }
 
 /* ═══════════════════════════════════════════════════════════
+   15b · CORRIDA · intercambio de máquina
+   ------------------------------------------------------------
+   Se perdió al reescribir el sistema a la v4 y las clases
+   quedaron sin estilo. El estado va en el borde, no en fondos
+   de color, como el resto del sistema.
+   ═══════════════════════════════════════════════════════════ */
+.corrida-flow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.corrida-bus {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-3);
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  text-align: center;
+}
+.corrida-bus.original  { border-color: var(--danger-border); }
+.corrida-bus.sustituto { border-color: var(--ok-border); }
+
+.corrida-bus .bus-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: var(--sp-1);
+}
+.corrida-bus.original  .bus-lbl { color: var(--danger-text); }
+.corrida-bus.sustituto .bus-lbl { color: var(--ok-text); }
+
+.corrida-bus .bus-num {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -.02em;
+}
+
+.corrida-arrow {
+  align-self: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* En teléfono la flecha apunta hacia abajo y las cajas se apilan */
+@media (max-width: 480px) {
+  .corrida-flow { flex-direction: column; }
+  .corrida-arrow { transform: rotate(90deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════
    16 · KANBAN (taller)
    ═══════════════════════════════════════════════════════════ */
 .kanban-board {
