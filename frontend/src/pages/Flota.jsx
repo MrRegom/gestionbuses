@@ -14,7 +14,7 @@ export default function Flota() {
   const fetchBuses = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:8000/api/flota/buses/');
+      const res = await axios.get('/api/flota/buses/');
       setBuses(res.data);
       setLoading(false);
     } catch (err) {

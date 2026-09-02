@@ -14,7 +14,7 @@ export default function Conductores() {
   const fetchPersonas = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:8000/api/operaciones/tripulacion/');
+      const res = await axios.get('/api/operaciones/tripulacion/');
       setPersonas(res.data);
       setLoading(false);
     } catch (err) {

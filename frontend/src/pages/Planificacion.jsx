@@ -24,8 +24,8 @@ export default function Planificacion() {
     setLoading(true);
     try {
       const [resPosturas, resRutas] = await Promise.all([
-        axios.get('http://localhost:8000/api/operaciones/posturas/'),
-        axios.get('http://localhost:8000/api/operaciones/rutas/')
+        axios.get('/api/operaciones/posturas/'),
+        axios.get('/api/operaciones/rutas/')
       ]);
       setPosturas(resPosturas.data);
       setRutas(resRutas.data);
@@ -38,7 +38,7 @@ export default function Planificacion() {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:8000/api/operaciones/posturas/', formData);
+      await axios.post('/api/operaciones/posturas/', formData);
       setIsModalOpen(false);
       fetchData(); // Reload list
     } catch (err) {
@@ -50,7 +50,7 @@ export default function Planificacion() {
   const handleDelete = async (id) => {
     if(window.confirm('¿Estás seguro de eliminar esta postura?')) {
       try {
-        await axios.delete(`http://localhost:8000/api/operaciones/posturas/${id}/`);
+        await axios.delete(`/api/operaciones/posturas/${id}/`);
         fetchData();
       } catch (err) {
         console.error(err);
