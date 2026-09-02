@@ -4,42 +4,97 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgo_project.settings')
 django.setup()
 
-from operaciones.models import Ciudad, Ruta, Postura
+from operaciones.models import Ciudad, Ruta, Postura, AsignacionTripulacion
 from flota.models import Bus
 import datetime
 
-# 1. Ciudades
-ciudades_nombres = ['Santiago', 'Antofagasta', 'Calama', 'Concepción', 'Temuco', 'Iquique', 'La Serena']
+# ── 1. Limpiar datos anteriores ────────────────────────────────────────────────
+Postura.objects.all().delete()
+Ruta.objects.all().delete()
+Ciudad.objects.all().delete()
+
+# ── 2. Ciudades reales de la operación PlussChile ──────────────────────────────
+# Todos los destinos son desde/hacia Santiago (zona sur)
+ciudades_nombres = [
+    'Santiago',
+    'Chillán',
+    'Concepción',
+    'Los Ángeles',
+    'Talcahuano',
+    'Tomé',
+    'Coronel',
+    'Lota',
+    'Cañete',
+]
 ciudades = {}
 for nombre in ciudades_nombres:
-    c, _ = Ciudad.objects.get_or_create(nombre=nombre)
+    c = Ciudad.objects.create(nombre=nombre)
     ciudades[nombre] = c
 
-# 2. Rutas
+stgo = ciudades['Santiago']
+
+# ── 3. Rutas IDA y VUELTA Santiago ↔ cada destino ──────────────────────────────
+# (duracion_estimada en horas, estimación real por distancia)
 rutas_data = [
-    (ciudades['Santiago'], ciudades['Antofagasta'], 18.5),
-    (ciudades['Santiago'], ciudades['Calama'], 20.0),
-    (ciudades['Concepción'], ciudades['Santiago'], 6.0),
-    (ciudades['Santiago'], ciudades['Temuco'], 8.5),
+    # IDA (Santiago → Destino)
+    (stgo, ciudades['Chillán'],      5.0),
+    (stgo, ciudades['Concepción'],   6.0),
+    (stgo, ciudades['Los Ángeles'],  6.5),
+    (stgo, ciudades['Talcahuano'],   6.5),
+    (stgo, ciudades['Tomé'],         6.5),
+    (stgo, ciudades['Coronel'],      6.5),
+    (stgo, ciudades['Lota'],         7.0),
+    (stgo, ciudades['Cañete'],       7.5),
+    # VUELTA (Destino → Santiago)
+    (ciudades['Chillán'],      stgo, 5.0),
+    (ciudades['Concepción'],   stgo, 6.0),
+    (ciudades['Los Ángeles'],  stgo, 6.5),
+    (ciudades['Talcahuano'],   stgo, 6.5),
+    (ciudades['Tomé'],         stgo, 6.5),
+    (ciudades['Coronel'],      stgo, 6.5),
+    (ciudades['Lota'],         stgo, 7.0),
+    (ciudades['Cañete'],       stgo, 7.5),
 ]
+
 rutas = []
 for origen, destino, duracion in rutas_data:
-    r, _ = Ruta.objects.get_or_create(origen=origen, destino=destino, defaults={'duracion_estimada': duracion})
+    r = Ruta.objects.create(origen=origen, destino=destino, duracion_estimada=duracion)
     rutas.append(r)
 
-# 3. Posturas (Usaremos la fecha de hoy)
-hoy = datetime.date.today()
+# Mapear rutas para fácil acceso
+def ruta(origen, destino):
+    return Ruta.objects.get(origen__nombre=origen, destino__nombre=destino)
+
+# ── 4. Buses disponibles ────────────────────────────────────────────────────────
 buses = list(Bus.objects.all())
+def bus(i): return buses[i] if len(buses) > i else None
+
+# ── 5. Posturas del día ─────────────────────────────────────────────────────────
+hoy = datetime.date.today()
 
 posturas_data = [
-    { 'codigo':'POS-001', 'ruta':rutas[0], 'fecha':hoy, 'hora_salida':'08:00', 'bus':buses[0] if len(buses)>0 else None, 'estado':'COMPLETA' },
-    { 'codigo':'POS-002', 'ruta':rutas[0], 'fecha':hoy, 'hora_salida':'09:30', 'bus':buses[1] if len(buses)>1 else None, 'estado':'COMPLETA' },
-    { 'codigo':'POS-003', 'ruta':rutas[0], 'fecha':hoy, 'hora_salida':'11:00', 'bus':buses[2] if len(buses)>2 else None, 'estado':'ALERTA' },
-    { 'codigo':'POS-004', 'ruta':rutas[1], 'fecha':hoy, 'hora_salida':'12:30', 'bus':None, 'estado':'PROBLEMA' },
-    { 'codigo':'POS-005', 'ruta':rutas[3], 'fecha':hoy, 'hora_salida':'19:00', 'bus':buses[3] if len(buses)>3 else None, 'estado':'LISTA' },
+    # IDA — Salidas desde Santiago (mañana y tarde)
+    { 'codigo':'SGO-CH-001', 'ruta': ruta('Santiago','Chillán'),      'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(0), 'estado':'COMPLETA' },
+    { 'codigo':'SGO-CC-001', 'ruta': ruta('Santiago','Concepción'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(1), 'estado':'COMPLETA' },
+    { 'codigo':'SGO-LA-001', 'ruta': ruta('Santiago','Los Ángeles'),  'fecha':hoy, 'hora_salida':'08:00', 'bus':bus(2), 'estado':'EN_CURSO' },
+    { 'codigo':'SGO-TH-001', 'ruta': ruta('Santiago','Talcahuano'),   'fecha':hoy, 'hora_salida':'08:30', 'bus':bus(3), 'estado':'EN_CURSO' },
+    { 'codigo':'SGO-TM-001', 'ruta': ruta('Santiago','Tomé'),         'fecha':hoy, 'hora_salida':'09:00', 'bus':bus(4), 'estado':'LISTA'    },
+    { 'codigo':'SGO-CO-001', 'ruta': ruta('Santiago','Coronel'),      'fecha':hoy, 'hora_salida':'09:30', 'bus':bus(5), 'estado':'LISTA'    },
+    { 'codigo':'SGO-LO-001', 'ruta': ruta('Santiago','Lota'),         'fecha':hoy, 'hora_salida':'10:00', 'bus':None,   'estado':'PROBLEMA' },
+    { 'codigo':'SGO-CA-001', 'ruta': ruta('Santiago','Cañete'),       'fecha':hoy, 'hora_salida':'10:30', 'bus':bus(6), 'estado':'LISTA'    },
+    # Salidas nocturnas
+    { 'codigo':'SGO-CC-002', 'ruta': ruta('Santiago','Concepción'),   'fecha':hoy, 'hora_salida':'22:00', 'bus':bus(7), 'estado':'LISTA'    },
+    { 'codigo':'SGO-CH-002', 'ruta': ruta('Santiago','Chillán'),      'fecha':hoy, 'hora_salida':'23:00', 'bus':bus(8), 'estado':'LISTA'    },
+    # VUELTA — Salidas desde destino hacia Santiago
+    { 'codigo':'CH-SGO-001', 'ruta': ruta('Chillán','Santiago'),      'fecha':hoy, 'hora_salida':'06:00', 'bus':bus(9), 'estado':'COMPLETA' },
+    { 'codigo':'CC-SGO-001', 'ruta': ruta('Concepción','Santiago'),   'fecha':hoy, 'hora_salida':'06:30', 'bus':bus(0), 'estado':'COMPLETA' },
+    { 'codigo':'LA-SGO-001', 'ruta': ruta('Los Ángeles','Santiago'),  'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(1), 'estado':'ALERTA'   },
+    { 'codigo':'TH-SGO-001', 'ruta': ruta('Talcahuano','Santiago'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(2), 'estado':'EN_CURSO' },
 ]
 
 for p in posturas_data:
-    Postura.objects.get_or_create(codigo=p['codigo'], defaults=p)
+    Postura.objects.create(**p)
 
-print("Planificación seeded successfully.")
+print(f"OK Rutas creadas: {Ruta.objects.count()}")
+print(f"OK Posturas creadas: {Postura.objects.count()}")
+print("Planificacion real zona sur seeded successfully.")
