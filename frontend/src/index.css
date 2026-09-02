@@ -922,10 +922,15 @@ tbody tr.clickable { cursor: pointer; }
    ═══════════════════════════════════════════════════════════════ */
 .modal-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.35);
-  backdrop-filter: blur(2px);
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(3px);
   z-index: 999;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Scroll vertical si el modal es muy alto */
+  overflow-y: auto;
+  padding: var(--sp-4);
   opacity: 0; pointer-events: none;
   transition: opacity var(--t-med);
 }
@@ -936,17 +941,38 @@ tbody tr.clickable { cursor: pointer; }
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-lg);
-  width: 90%; max-width: 520px;
-  max-height: 90vh; overflow-y: auto;
+  width: 100%; max-width: 520px;
+  /* Nunca sobrepasa el viewport; su contenido interno hace scroll */
+  max-height: calc(100vh - var(--sp-8));
+  overflow-y: auto;
+  /* Evita que el modal quede aplastado en muy poca altura */
+  margin: auto;
   transform: translateY(12px) scale(0.98);
   transition: transform var(--t-med);
 }
 .modal-overlay.open .modal { transform: none; }
 
+/* En mobile el modal ocupa todo el ancho disponible */
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: var(--sp-3);
+    align-items: flex-start;
+    padding-top: 72px; /* deja espacio para el topbar */
+  }
+  .modal {
+    max-height: calc(100dvh - 88px);
+    border-radius: var(--r-lg);
+  }
+}
+
 .modal-header {
   padding: var(--sp-5) var(--sp-6);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0;
+  background: var(--bg-white);
+  z-index: 1;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
 }
 .modal-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
 .modal-body  { padding: var(--sp-5) var(--sp-6); }
@@ -956,6 +982,7 @@ tbody tr.clickable { cursor: pointer; }
   background: var(--bg-muted);
   display: flex; justify-content: flex-end; gap: var(--sp-3);
   border-radius: 0 0 var(--r-xl) var(--r-xl);
+  position: sticky; bottom: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════
