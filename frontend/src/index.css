@@ -1038,6 +1038,45 @@ tbody tr.clickable { cursor: pointer; }
 }
 .slide-panel.open { right: 0; }
 
+/* En desktop queda a la derecha del contenido */
+@media (min-width: 769px) {
+  .slide-panel.open {
+    top: 60px; /* debajo del topbar fijo */
+  }
+}
+
+/* En mobile ocupa todo el ancho como panel inferior */
+@media (max-width: 768px) {
+  .slide-panel {
+    width: 100% !important;
+    top: auto;
+    bottom: -100%;
+    right: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    max-height: 85vh;
+    transition: bottom var(--t-med);
+  }
+  .slide-panel.open {
+    bottom: 0;
+    right: 0;
+  }
+  /* En mobile mostrar overlay */
+  .mobile-panel-overlay {
+    display: block !important;
+    z-index: 299;
+  }
+}
+
+.slide-panel-header {
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-white);
+  flex-shrink: 0;
+}
+
 .slide-header {
   padding: var(--sp-4) var(--sp-5);
   border-bottom: 1px solid var(--border);
