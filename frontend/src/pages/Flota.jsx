@@ -250,12 +250,12 @@ export default function Flota() {
       >
         <div className="grid-2">
           <div className="form-group">
-            <label className="form-label" htmlFor="bus-num">Nº interno</label>
+            <label className="form-label" htmlFor="bus-num">Nº interno de la máquina</label>
             <input
               id="bus-num" type="text" className="form-input" required
               value={form.numero ?? ''}
               onChange={e => setForm({ ...form, numero: e.target.value })}
-              placeholder="BUS 110"
+              placeholder="17"
             />
           </div>
           <div className="form-group">
