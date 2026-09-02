@@ -111,7 +111,7 @@ export default function Flota() {
               <tbody>
                 {buses.map(bus => (
                   <tr key={bus.id}>
-                    <td>
+                    <td data-label="Nº Interno">
                       <div className="flex items-center gap-3">
                         <div className="kpi-icon-wrap" style={{ width: '32px', height: '32px', background: 'var(--bg-muted)' }}>
                           {getIconForStatus(bus.estado)}
@@ -119,12 +119,12 @@ export default function Flota() {
                         <span className="td-bus-num">{bus.numero}</span>
                       </div>
                     </td>
-                    <td><span className="td-bus-plate">{bus.patente}</span></td>
-                    <td>{bus.modelo}</td>
-                    <td>{bus.kilometraje.toLocaleString()} km</td>
-                    <td>{bus.servicio}</td>
-                    <td>{getStatusBadge(bus.estado)}</td>
-                    <td>
+                    <td data-label="Patente"><span className="td-bus-plate">{bus.patente}</span></td>
+                    <td data-label="Modelo">{bus.modelo}</td>
+                    <td data-label="Kilometraje">{bus.kilometraje.toLocaleString()} km</td>
+                    <td data-label="Servicio">{bus.servicio}</td>
+                    <td data-label="Estado">{getStatusBadge(bus.estado)}</td>
+                    <td data-label="Acción">
                       <button className="btn btn-ghost btn-sm">Ver det. <ArrowRight size={14} /></button>
                     </td>
                   </tr>

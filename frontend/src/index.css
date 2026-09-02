@@ -600,6 +600,58 @@ tbody tr:hover td { background: var(--bg-hover); }
 tbody tr { transition: background var(--t-fast); cursor: default; }
 tbody tr.clickable { cursor: pointer; }
 
+/* Responsive Tables */
+@media (max-width: 768px) {
+  table, thead, tbody, th, td, tr {
+    display: block;
+  }
+  thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+  tr {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: var(--sp-4);
+    background: var(--bg-white);
+  }
+  tbody td {
+    border: none;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    padding-left: 45%;
+    text-align: right;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 44px;
+  }
+  tbody td:last-child {
+    border-bottom: 0;
+  }
+  tbody td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: var(--sp-3);
+    width: 40%;
+    padding-right: 10px;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 700;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .table-wrap {
+    overflow-x: hidden;
+    background: transparent;
+  }
+  .table-wrap table {
+    background: transparent;
+  }
+}
+
 .td-hora {
   font-size: 15px; font-weight: 700;
   color: var(--text-primary);

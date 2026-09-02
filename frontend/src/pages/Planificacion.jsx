@@ -107,23 +107,23 @@ export default function Planificacion() {
               <tbody>
                 {posturas.map(p => (
                   <tr key={p.id}>
-                    <td><span className="fw-700">{p.codigo}</span></td>
-                    <td>
+                    <td data-label="Código"><span className="fw-700">{p.codigo}</span></td>
+                    <td data-label="Ruta">
                       <div className="flex items-center gap-2">
                         <MapPin size={14} className="text-muted" />
                         <span className="fw-600">{p.ruta?.origen?.nombre} <span className="text-muted">→</span> {p.ruta?.destino?.nombre}</span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Salida">
                       <div className="flex items-center gap-2">
                         <Clock size={14} className="text-muted" />
                         <span>{p.fecha} <span className="fw-700">{p.hora_salida.substring(0, 5)}</span></span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Bus">
                       {p.bus ? <span className="badge navy">{p.bus.numero}</span> : <span className="text-muted fs-11">Sin asignar</span>}
                     </td>
-                    <td>
+                    <td data-label="Tripulación">
                       {p.tripulacion.length > 0 ? (
                         <div className="crew-avatars">
                           {p.tripulacion.map(t => (
@@ -134,8 +134,8 @@ export default function Planificacion() {
                         </div>
                       ) : <span className="text-muted fs-11">0 asignados</span>}
                     </td>
-                    <td>{getStatusBadge(p.estado)}</td>
-                    <td>
+                    <td data-label="Estado">{getStatusBadge(p.estado)}</td>
+                    <td data-label="Acciones">
                       <div className="flex gap-2">
                         <button className="btn-icon" title="Editar"><Edit size={14} /></button>
                         <button className="btn-icon text-danger" title="Eliminar" onClick={() => handleDelete(p.id)}><Trash2 size={14} color="var(--danger)" /></button>

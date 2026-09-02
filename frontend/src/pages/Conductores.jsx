@@ -115,7 +115,7 @@ export default function Conductores() {
                   const sInfo = getSemaforoInfo(persona.semaforo, persona.razon_bloqueo);
                   return (
                     <tr key={persona.id}>
-                      <td>
+                      <td data-label="Nombre">
                         <div className="flex items-center gap-3">
                           <div className="user-avatar" style={{ background: getAvatarColor(persona.id), width: '36px', height: '36px' }}>
                             {getInitials(persona.nombre)}
@@ -123,13 +123,13 @@ export default function Conductores() {
                           <span className="fw-700">{persona.nombre}</span>
                         </div>
                       </td>
-                      <td><span className="text-muted" style={{ fontFamily: 'monospace' }}>{persona.rut}</span></td>
-                      <td>
+                      <td data-label="RUT"><span className="text-muted" style={{ fontFamily: 'monospace' }}>{persona.rut}</span></td>
+                      <td data-label="Rol/Perfil">
                         <div className="fw-600">{persona.rol}</div>
                         <div className="fs-11 text-muted">{persona.tipo}</div>
                       </td>
-                      <td><span className="fw-700">{parseFloat(persona.horas_hoy)}h</span></td>
-                      <td>
+                      <td data-label="Horas Hoy"><span className="fw-700">{parseFloat(persona.horas_hoy)}h</span></td>
+                      <td data-label="Semáforo Operacional">
                         <div className="flex flex-col gap-2" style={{ alignItems: 'flex-start' }} title={sInfo.title}>
                           <span className={`badge ${sInfo.cls}`}>
                             {sInfo.icon} {sInfo.text}
@@ -141,8 +141,8 @@ export default function Conductores() {
                           )}
                         </div>
                       </td>
-                      <td>
-                        <button className="btn btn-ghost btn-sm">Ver ficha <ArrowRight size={14} /></button>
+                      <td data-label="Acciones">
+                        <button className="btn-icon" title="Editar"><Edit size={14} /></button>
                       </td>
                     </tr>
                   );
