@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     TripulacionListView, ConductoresListView,
-    PersonalCreateView, PersonalDetailView,
+    PersonalCreateView, PersonalDetailView, PosturasParaPersonaView,
     CiudadListCreateView, CiudadDetailView,
     RutaListView, RutaCreateView, RutaDetailView,
     ParametrosView,
@@ -18,6 +18,7 @@ urlpatterns = [
     path('conductores/', ConductoresListView.as_view(), name='conductores-list'),
     path('personal/', PersonalCreateView.as_view(), name='personal-create'),
     path('personal/<int:pk>/', PersonalDetailView.as_view(), name='personal-detail'),
+    path('personal/<int:pk>/posturas/', PosturasParaPersonaView.as_view(), name='personal-posturas'),
 
     # Catálogo
     path('ciudades/', CiudadListCreateView.as_view(), name='ciudad-list-create'),

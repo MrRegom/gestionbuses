@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from django.db import transaction
+from django.utils import timezone
 
 from .repositories import PersonaRepository
 from .models import (
@@ -162,6 +163,13 @@ class PlanificacionService:
                 f"{persona.nombre} es {persona.get_rol_display()} y no puede ir como tripulación."
             )
 
+        # El rol se valida antes de usarlo: si el cliente no lo manda,
+        # `rol.lower()` explotaba con un 500 en vez de decir qué falta.
+        if rol not in Persona.Rol.values:
+            raise ValueError(
+                'Indica con qué puesto viaja: conductor o asistente.'
+            )
+
         # El puesto en el viaje tiene que corresponder al cargo: la
         # dotación son dos conductores y un asistente, no tres personas
         # intercambiables. Un asistente no va al volante.
@@ -203,7 +211,14 @@ class PlanificacionService:
                 f'La postura {postura.codigo} ya tiene {cubierto}.'
             )
 
-        return PosturaRepository.asignar_tripulacion(postura, persona, rol)
+        asignacion = PosturaRepository.asignar_tripulacion(postura, persona, rol)
+
+        # Asignar y avisar son el mismo acto: si el conductor no se
+        # entera, el sistema no reemplazó al WhatsApp, solo se sumó.
+        from core.services import avisar_asignacion
+        avisar_asignacion(asignacion)
+
+        return asignacion
 
     @staticmethod
     def desasignar_tripulacion(asignacion_id: int):
@@ -213,7 +228,13 @@ class PlanificacionService:
         asignacion = AsignacionRepository.get_by_id(asignacion_id)
         if not asignacion:
             raise ValueError("Asignación no encontrada")
+
+        # Los datos se leen antes de borrar la fila.
+        from core.services import avisar_desasignacion
+        persona, postura = asignacion.persona, asignacion.postura
+
         AsignacionRepository.delete(asignacion)
+        avisar_desasignacion(persona, postura)
 
     @staticmethod
     def asignar_bus(postura_id: int, bus_id):
@@ -255,7 +276,12 @@ class PlanificacionService:
                 f"{bus.numero} ya cubre la postura {choque.codigo}, que se solapa con esta."
             )
 
-        return PosturaRepository.update_postura(postura, {'bus': bus})
+        actualizada = PosturaRepository.update_postura(postura, {'bus': bus})
+
+        from core.services import avisar_cambio_bus
+        avisar_cambio_bus(actualizada, bus)
+
+        return actualizada
 
     @staticmethod
     def personal_disponible(postura_id: int):
@@ -310,6 +336,81 @@ class PlanificacionService:
             })
         return resultado
 
+    @staticmethod
+    def posturas_para_persona(persona_id: int):
+        """El inverso de `personal_disponible`: qué servicios puede tomar.
+
+        La pantalla de Conductores ofrecía cualquier postura donde la
+        persona no estuviera ya. El servidor las rechazaba una por una,
+        así que no había riesgo de datos malos, pero el programador
+        elegía a ciegas y descubría el problema recién al confirmar.
+
+        Las reglas son las mismas de `asignar_tripulacion` porque salen
+        del mismo sitio: si se copiaran aquí, tarde o temprano una de las
+        dos versiones se quedaría atrás.
+        """
+        from .repositories import PersonaRepository
+
+        persona = PersonaRepository.get_persona_by_id(persona_id)
+        if not persona:
+            raise ValueError('Persona no encontrada')
+
+        # Ni el mecánico ni el jefe de operaciones viajan: para ellos no
+        # hay ninguna postura posible, y decirlo es mejor que mostrar una
+        # lista que fallará entera.
+        if persona.rol not in (Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE):
+            return []
+
+        # Lo ya ocurrido no se planifica. Sin este corte la lista arrastra
+        # todos los servicios históricos y no se encuentra el de mañana.
+        hoy = timezone.localdate()
+        candidatas = list(
+            Postura.objects
+            .filter(fecha__gte=hoy)
+            .select_related('ruta', 'ruta__origen', 'ruta__destino', 'bus')
+            .prefetch_related('tripulacion')
+            .order_by('fecha', 'hora_salida')
+        )
+
+        # Todo lo que la persona ya tiene comprometido, para medir choques.
+        suyas = list(
+            Postura.objects
+            .filter(tripulacion__persona=persona)
+            .select_related('ruta')
+            .distinct()
+        )
+        propias = {p.id for p in suyas}
+
+        bloqueado = (
+            persona.razon_bloqueo or 'Bloqueado por control de fatiga'
+            if persona.semaforo == Persona.Semaforo.ROJO else None
+        )
+
+        resultado = []
+        for postura in candidatas:
+            if postura.id in propias:
+                motivo = 'Ya va en este servicio'
+            elif bloqueado:
+                motivo = bloqueado
+            elif not postura.faltantes().get(persona.rol, 0):
+                cargo = 'conductores' if persona.rol == Persona.Rol.CONDUCTOR                     else 'asistentes'
+                motivo = f'Ya tiene todos sus {cargo}'
+            else:
+                choque = next(
+                    (o for o in suyas
+                     if o.id != postura.id and _se_solapan(postura, o)),
+                    None,
+                )
+                motivo = (f'Se solapa con {choque.codigo}, donde ya viaja'
+                          if choque else None)
+
+            resultado.append({
+                'postura': postura,
+                'disponible': motivo is None,
+                'motivo': motivo,
+            })
+
+        return resultado
 
 
 class PersonalService:
@@ -635,12 +736,18 @@ class CorridaService:
         )
         corrida.posturas.set(posturas)
 
+        from core.services import avisar_corrida
+
         for p in posturas:
             p.bus = sustituto
             # Con máquina asignada el servicio deja de estar en problema;
             # sin sustituto queda marcado para que Operaciones lo vea.
             p.estado = Postura.Estado.LISTA if sustituto else Postura.Estado.PROBLEMA
             p.save(update_fields=['bus', 'estado'])
+
+            # La tripulación tiene que enterarse antes de presentarse al
+            # andén: el bus con el que iban ya no es el que sale.
+            avisar_corrida(p, bus_original, sustituto)
 
         return corrida
 

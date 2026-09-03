@@ -23,7 +23,7 @@ class ConductoresListView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 from .services import PlanificacionService
-from .serializers import RutaSerializer, PosturaSerializer
+from .serializers import RutaSerializer, PosturaSerializer, PosturaResumenSerializer
 
 class RutaListView(APIView):
     def get(self, request):
@@ -51,6 +51,19 @@ class PosturaListCreateView(APIView):
 class PosturaDetailView(APIView):
     permission_classes = [SoloLecturaMonitoreo]
     roles_permitidos = OPERACIONES
+
+    def get(self, request, pk):
+        """Una postura con su tripulación y su dotación.
+
+        Faltaba: se podía editar y borrar una postura pero no
+        consultarla, y pedirla devolvía 405.
+        """
+        try:
+            postura = PlanificacionService.get_postura(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+        return Response(PosturaSerializer(postura).data, status=status.HTTP_200_OK)
+
     def put(self, request, pk):
         try:
             postura = PlanificacionService.get_postura(pk)
@@ -203,6 +216,27 @@ class CiudadDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class PosturasParaPersonaView(APIView):
+    """Servicios que esta persona puede tomar, y por qué no los otros."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request, pk):
+        try:
+            filas = PlanificacionService.posturas_para_persona(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response([
+            {
+                'postura': PosturaResumenSerializer(f['postura']).data,
+                'disponible': f['disponible'],
+                'motivo': f['motivo'],
+            }
+            for f in filas
+        ], status=status.HTTP_200_OK)
+
+
 class ParametrosView(APIView):
     """Las reglas del negocio: dotación por servicio y tope de horas.
 
@@ -289,7 +323,7 @@ class PersonalDisponibleView(APIView):
 
 # ── CORRIDAS ─────────────────────────────────────────────────
 from .services import CorridaService  # noqa: E402
-from .serializers import CorridaSerializer, PosturaResumenSerializer  # noqa: E402
+from .serializers import CorridaSerializer  # noqa: E402
 
 
 class CorridaTableroView(APIView):

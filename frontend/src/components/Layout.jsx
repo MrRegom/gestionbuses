@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Menu, X, Bell, LogOut, MoreHorizontal } from 'lucide-react';
+import { Menu, X, LogOut, MoreHorizontal } from 'lucide-react';
+import Campana from './Campana';
 import {
   NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem, navParaRol, usaBottomNav, tituloDe,
 } from '../config/navigation';
@@ -107,9 +108,7 @@ export default function Layout() {
               weekday: 'long', day: 'numeric', month: 'short',
             })}
           </span>
-          <button className="btn-icon-top" title="Notificaciones" aria-label="Notificaciones">
-            <Bell size={18} />
-          </button>
+          <Campana />
           <button
             className="btn-icon-top" title="Cerrar sesión" aria-label="Cerrar sesión"
             onClick={logout}

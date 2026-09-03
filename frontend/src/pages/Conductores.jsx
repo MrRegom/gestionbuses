@@ -31,8 +31,14 @@ const ESTADO_BADGE = { LISTA: 'ok', EN_CURSO: 'info', COMPLETA: 'ok', ALERTA: 'w
 const estadoBadge = e => <span className={`badge ${ESTADO_BADGE[e] ?? 'neutral'}`}>{e}</span>;
 
 /* ─ Ficha lateral ────────────────────────────────────────── */
+const VIAJAN = ['CONDUCTOR', 'ASISTENTE'];
+
 function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
   const [tab, setTab] = useState('info');
+  // El listado incluye a todo el personal, porque es el único sitio
+  // donde se da de alta a un mecánico. Pero a un mecánico no se le
+  // asigna un servicio, así que esa pestaña no existe para él.
+  const esTripulacion = VIAJAN.includes(persona.rol);
   const [selPostura, setSelPostura] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -41,10 +47,25 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
     p.tripulacion.some(t => t.persona.id === persona.id)
   );
 
-  const disponibles = posturas.filter(p =>
-    p.estado !== 'COMPLETA' &&
-    !p.tripulacion.some(t => t.persona.id === persona.id)
-  );
+  /* Qué servicios puede tomar esta persona lo decide el servidor.
+     Antes se filtraba aquí con dos condiciones —que no fuera COMPLETA y
+     que no estuviera ya asignada— y eso dejaba pasar los casos que
+     importan: un conductor con otro viaje a la misma hora, una postura
+     que ya tiene sus dos conductores, alguien bloqueado por fatiga. El
+     servidor los rechazaba igual, pero recién al confirmar. */
+  const [opciones, setOpciones] = useState(null);
+
+  useEffect(() => {
+    if (tab !== 'asignar') return;
+    let vigente = true;
+    axios.get(`/api/operaciones/personal/${persona.id}/posturas/`)
+      .then(r => { if (vigente) setOpciones(r.data); })
+      .catch(() => { if (vigente) setOpciones([]); });
+    return () => { vigente = false; };
+  }, [tab, persona.id, posturas]);
+
+  const disponibles = (opciones ?? []).filter(o => o.disponible);
+  const noDisponibles = (opciones ?? []).filter(o => !o.disponible);
 
   const handleAsignar = async () => {
     if (!selPostura) return;
@@ -87,7 +108,10 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
       </div>
 
       <div className="tabs">
-        {[['info', 'Ficha'], ['asignar', 'Asignar postura']].map(([key, label]) => (
+        {(esTripulacion
+          ? [['info', 'Ficha'], ['asignar', 'Asignar postura']]
+          : [['info', 'Ficha']]
+        ).map(([key, label]) => (
           <button
             key={key}
             className={`tab ${tab === key ? 'active' : ''}`}
@@ -148,13 +172,19 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                 <div className="section-label" style={{ marginBottom: 0 }}>
                   Posturas asignadas ({misPosturas.length})
                 </div>
-                <button className="btn btn-secondary btn-sm" onClick={() => setTab('asignar')}>
-                  <Plus size={13} /> Asignar
-                </button>
+                {esTripulacion && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => setTab('asignar')}>
+                    <Plus size={13} /> Asignar
+                  </button>
+                )}
               </div>
 
               {misPosturas.length === 0 ? (
-                <div className="info-box text-center text-muted">Sin posturas asignadas</div>
+                <div className="info-box text-center text-muted">
+                  {esTripulacion
+                    ? 'Sin posturas asignadas'
+                    : 'Este perfil no viaja en los servicios.'}
+                </div>
               ) : (
                 misPosturas.map(p => {
                   const asig = p.tripulacion.find(t => t.persona.id === persona.id);
@@ -209,16 +239,17 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                 onChange={e => setSelPostura(e.target.value)}
               >
                 <option value="">Seleccione una postura…</option>
-                {disponibles.map(p => (
+                {disponibles.map(({ postura: p }) => (
                   <option key={p.id} value={p.id}>
-                    {p.codigo} · {p.ruta?.origen?.nombre} → {p.ruta?.destino?.nombre} · {p.hora_salida?.substring(0, 5)}
+                    {p.codigo} · {p.ruta?.origen?.nombre} → {p.ruta?.destino?.nombre}
+                    {' · '}{p.fecha} {p.hora_salida?.substring(0, 5)}
                   </option>
                 ))}
               </select>
             </div>
 
             {selPostura && (() => {
-              const p = disponibles.find(x => x.id === parseInt(selPostura, 10));
+              const p = disponibles.find(x => x.postura.id === parseInt(selPostura, 10))?.postura;
               if (!p) return null;
               return (
                 <div className="info-box accent mb-4">
@@ -245,9 +276,13 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
               </div>
             )}
 
-            {disponibles.length === 0 ? (
+            {opciones === null ? (
+              <div className="skeleton" style={{ height: 44 }} />
+            ) : disponibles.length === 0 ? (
               <div className="info-box text-center text-muted">
-                No hay posturas disponibles para asignar
+                {noDisponibles.length === 0
+                  ? 'No hay servicios programados de hoy en adelante.'
+                  : `Ninguno de los ${noDisponibles.length} servicios programados admite a ${persona.nombre.split(' ')[0]}.`}
               </div>
             ) : (
               <button
@@ -257,6 +292,33 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
               >
                 {saving ? <><span className="spinner" /> Asignando…</> : <><Plus size={15} /> Confirmar asignación</>}
               </button>
+            )}
+
+            {/* Los que no puede tomar, con el motivo. Esconderlos haría
+                parecer que no existen; el programador necesita saber que
+                el servicio está ahí y por qué esta persona no entra. */}
+            {noDisponibles.length > 0 && (
+              <div className="mt-4">
+                <div className="section-label">
+                  No disponibles ({noDisponibles.length})
+                </div>
+                <div className="data-list">
+                  {noDisponibles.slice(0, 12).map(({ postura: p, motivo }) => (
+                    <div className="data-row" key={p.id}>
+                      <span className="data-row-key">
+                        <span className="mono">{p.codigo}</span>
+                        {' · '}{p.hora_salida?.substring(0, 5)}
+                      </span>
+                      <span className="data-row-val text-muted fs-12">{motivo}</span>
+                    </div>
+                  ))}
+                </div>
+                {noDisponibles.length > 12 && (
+                  <p className="empty-sub mt-2">
+                    y {noDisponibles.length - 12} más.
+                  </p>
+                )}
+              </div>
             )}
           </>
         )}
@@ -343,11 +405,15 @@ export default function Conductores() {
     }
   };
 
-  /* Asignar conductor a postura */
+  /* Sube a la persona a una postura con su propio cargo.
+     Antes iba fijo 'CONDUCTOR': asignar a un asistente desde esta
+     pantalla fallaba siempre, porque el servidor exige que el puesto
+     en el viaje coincida con el cargo de la persona. */
   const handleAsignar = async (posturaId, personaId) => {
+    const persona = personas.find(p => p.id === personaId);
     await axios.post(`/api/operaciones/posturas/${posturaId}/asignar/`, {
       persona_id: personaId,
-      rol_en_viaje: 'CONDUCTOR',
+      rol_en_viaje: persona?.rol,
     });
     await fetchAll();
     const r = await axios.get('/api/operaciones/tripulacion/');

@@ -11,6 +11,8 @@ from operaciones.models import Parametros
 from operaciones.serializers import PersonaSerializer
 
 from .permissions import TienePersona, persona_de
+from .serializers import NotificacionSerializer
+from .services import NotificacionService
 
 
 def _reglas():
@@ -117,3 +119,27 @@ class PerfilView(APIView):
 
     def get(self, request):
         return Response(_sesion(persona_de(request)), status=status.HTTP_200_OK)
+
+
+class NotificacionesView(APIView):
+    """Los avisos de quien está mirando, y cuántos no ha leído.
+
+    Cada uno ve solo los suyos: la persona sale de la sesión y no de un
+    parámetro, para que nadie pueda pedir la bandeja de otro.
+    """
+    permission_classes = [TienePersona]
+
+    def get(self, request):
+        persona = persona_de(request)
+        return Response({
+            'sin_leer': NotificacionService.sin_leer(persona),
+            'notificaciones': NotificacionSerializer(
+                NotificacionService.mias(persona), many=True).data,
+        }, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Marca como leídas. Sin `ids`, todas."""
+        persona = persona_de(request)
+        marcadas = NotificacionService.marcar_leidas(
+            persona, request.data.get('ids'))
+        return Response({'marcadas': marcadas}, status=status.HTTP_200_OK)
