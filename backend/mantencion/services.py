@@ -184,8 +184,8 @@ class ChecklistService:
         return checklist
 
     @staticmethod
-    def iniciar(bus_id: int, persona_id: int, momento: str, postura_id=None):
-        """Abre un checklist en curso. No crea respuestas: se van
+    def iniciar(bus_id: int, persona_id: int, postura_id=None):
+        """Abre el checklist de llegada. No crea respuestas: se van
         registrando a medida que la tripulación responde."""
         try:
             bus = Bus.objects.get(id=bus_id)
@@ -204,14 +204,10 @@ class ChecklistService:
             except Postura.DoesNotExist:
                 raise ValueError('Postura no encontrada')
 
-        if momento not in Checklist.Momento.values:
-            raise ValueError('Momento inválido')
-
         return ChecklistRepository.create({
             'bus': bus,
             'reportado_por': persona,
             'postura': postura,
-            'momento': momento,
         })
 
     @staticmethod
@@ -267,10 +263,11 @@ class ChecklistService:
 
         incidentes = []
         for falla in fallas:
-            gravedad = (
-                Incidente.Gravedad.ALTA if falla.item.critico
-                else Incidente.Gravedad.MEDIA
-            )
+            # Un ítem crítico entra ya clasificado como alto: eso no
+            # es un juicio del conductor, es la regla que Operaciones
+            # dejó escrita en la plantilla. El resto queda sin
+            # clasificar hasta que Mantención lo vea.
+            gravedad = Incidente.Gravedad.ALTA if falla.item.critico else None
             incidentes.append(IncidenteRepository.create_con_codigo({
                 'bus': checklist.bus,
                 'postura': checklist.postura,
@@ -315,14 +312,16 @@ class IncidenteService:
     @staticmethod
     @transaction.atomic
     def reportar_en_ruta(bus_id: int, persona_id: int, descripcion: str,
-                         gravedad: str, postura_id=None):
-        """Reporte directo desde el celular durante el viaje, sin checklist
-        de por medio (README §2.2)."""
+                         postura_id=None):
+        """Reporte directo desde el celular durante el viaje.
+
+        No pide clasificar la falla. Operaciones fue claro: el conductor
+        detalla lo que pasó y Mantención decide qué hacer con eso. Pedirle
+        que elija entre baja, media y alta lo obliga a un juicio que no le
+        corresponde y que además condicionaría la prioridad del taller.
+        """
         if not descripcion or not descripcion.strip():
             raise ValueError('La descripción del incidente es obligatoria')
-
-        if gravedad not in Incidente.Gravedad.values:
-            raise ValueError('Gravedad inválida')
 
         try:
             bus = Bus.objects.get(id=bus_id)
@@ -346,17 +345,31 @@ class IncidenteService:
             'postura': postura,
             'reportado_por': persona,
             'descripcion': descripcion.strip(),
-            'gravedad': gravedad,
             'origen': Incidente.Origen.RUTA,
         })
 
-        # Una falla grave en ruta tumba el bus: Operaciones debe verlo de
-        # inmediato para gestionar la corrida.
-        if gravedad == Incidente.Gravedad.ALTA:
-            bus.estado = Bus.Estado.FUERA_SERVICIO
-            bus.save(update_fields=['estado'])
-
+        # El bus no se tumba solo: quién decide detener o seguir es el
+        # conductor por ley y el jefe de mecánicos en la práctica. El
+        # sistema deja la falla a la vista y esa decisión se toma en el
+        # taller, con `marcar_no_operativo`.
         return incidente
+
+    @staticmethod
+    def clasificar(incidente_id: int, gravedad: str):
+        """Mantención le pone gravedad a una falla reportada.
+
+        Es el paso que en el proceso actual hace el jefe de mecánicos al
+        leer el checklist: el conductor detalla, él decide qué tan grave
+        es y qué se atiende primero.
+        """
+        incidente = IncidenteRepository.get_by_id(incidente_id)
+        if not incidente:
+            raise ValueError('Incidente no encontrado')
+
+        if gravedad not in Incidente.Gravedad.values:
+            raise ValueError('Gravedad inválida')
+
+        return IncidenteRepository.update(incidente, {'gravedad': gravedad})
 
     @staticmethod
     def cambiar_estado(incidente_id: int, estado: str):
@@ -400,14 +413,16 @@ class TallerService:
         if especialidad not in OrdenTrabajo.Especialidad.values:
             raise ValueError('Especialidad inválida')
 
-        # Si el jefe no fija prioridad, se hereda de la gravedad del
-        # incidente: una falla alta no puede entrar como trabajo menor.
+        # La prioridad la pone el jefe de mecánicos, que la decide
+        # mirando qué postura tiene ese bus asignada y cuánto demora la
+        # reparación. Si no la fija, se hereda de la gravedad —cuando ya
+        # está clasificada— y si no, entra como media.
         if not prioridad:
             prioridad = {
                 Incidente.Gravedad.ALTA: OrdenTrabajo.Prioridad.ALTA,
                 Incidente.Gravedad.MEDIA: OrdenTrabajo.Prioridad.MEDIA,
                 Incidente.Gravedad.BAJA: OrdenTrabajo.Prioridad.BAJA,
-            }[incidente.gravedad]
+            }.get(incidente.gravedad, OrdenTrabajo.Prioridad.MEDIA)
 
         orden = OrdenTrabajoRepository.create_con_codigo({
             'incidente': incidente,

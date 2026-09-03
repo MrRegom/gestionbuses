@@ -25,7 +25,11 @@ const ORIGEN = {
   RUTA:      { Icon: Radio,          label: 'En ruta' },
 };
 
-const FORM_VACIO = { bus_id: '', descripcion: '', gravedad: 'MEDIA', postura_id: '' };
+/* Sin gravedad: Operaciones fue explícito en que el conductor "solo
+   detalla la falla, luego Mantención decide qué hacer". Pedirle que
+   elija entre baja, media y alta lo obliga a un juicio que no le toca y
+   que además condicionaría la prioridad del taller. */
+const FORM_VACIO = { bus_id: '', descripcion: '', postura_id: '' };
 
 export default function Incidentes() {
   const { sesion } = useAuth();
@@ -84,7 +88,6 @@ export default function Incidentes() {
       await axios.post('/api/mantencion/incidentes/', {
         bus_id: form.bus_id,
         descripcion: form.descripcion,
-        gravedad: form.gravedad,
         postura_id: form.postura_id || null,
       });
       cerrarModal();
@@ -210,7 +213,8 @@ export default function Incidentes() {
                 </thead>
                 <tbody>
                   {visibles.map(inc => {
-                    const g = GRAVEDAD[inc.gravedad] ?? { badge: 'neutral', label: inc.gravedad };
+                    const g = GRAVEDAD[inc.gravedad]
+                      ?? { badge: 'neutral', label: 'Sin clasificar' };
                     const e = ESTADO[inc.estado] ?? { badge: 'neutral', label: inc.estado };
                     const o = ORIGEN[inc.origen] ?? { Icon: AlertCircle, label: inc.origen };
                     const { Icon } = o;
@@ -317,22 +321,9 @@ export default function Incidentes() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="inc-grav">Gravedad</label>
-                  <select
-                    id="inc-grav" className="form-input form-select"
-                    value={form.gravedad}
-                    onChange={ev => setForm({ ...form, gravedad: ev.target.value })}
-                  >
-                    {Object.entries(GRAVEDAD).map(([k, v]) => (
-                      <option key={k} value={k}>{v.label}</option>
-                    ))}
-                  </select>
-                  {form.gravedad === 'ALTA' && (
-                    <p className="fs-12 text-muted">
-                      Una gravedad alta deja el bus fuera de servicio de inmediato.
-                    </p>
-                  )}
+                <div className="info-box">
+                  Describe la falla y ya. La gravedad y la prioridad las
+                  decide Mantención cuando la revisa.
                 </div>
               </div>
 

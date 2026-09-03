@@ -6,24 +6,22 @@ import {
   RefreshCw, ChevronRight, ShieldAlert, ArrowLeft, Play,
 } from 'lucide-react';
 
-const MOMENTOS = [
-  { value: 'SALIDA',  label: 'Preventivo de salida' },
-  { value: 'LLEGADA', label: 'Recepción en terminal' },
-];
-
 const OPCIONES = [
   { estado: 'OK',    label: 'OK',    Icon: Check, cls: 'ok' },
   { estado: 'FALLA', label: 'Falla', Icon: X,     cls: 'danger' },
   { estado: 'NA',    label: 'N/A',   Icon: Minus, cls: 'neutral' },
 ];
 
-/* ── Pantalla de inicio: elegir bus, tripulante y momento ───── */
+/* ── Pantalla de inicio: elegir bus y servicio ──────────────
+   El checklist es uno por viaje y se hace al llegar a Santiago, así
+   que no hay momento que elegir: antes esta pantalla ofrecía también
+   un "preventivo de salida" que no existe en el proceso real. */
 function Inicio({ buses, posturas, quien, onIniciar, iniciando, error }) {
   const [form, setForm] = useState({
-    bus_id: '', momento: 'SALIDA', postura_id: '',
+    bus_id: '', postura_id: '',
   });
 
-  const puedeIniciar = form.bus_id && form.momento;
+  const puedeIniciar = Boolean(form.bus_id);
 
   return (
     <div className="card">
@@ -59,19 +57,6 @@ function Inicio({ buses, posturas, quien, onIniciar, iniciando, error }) {
         <div className="form-group">
           <label className="form-label">Realiza la revisión</label>
           <div className="info-box">{quien}</div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label" htmlFor="chk-momento">Momento</label>
-          <select
-            id="chk-momento" className="form-input form-select"
-            value={form.momento}
-            onChange={e => setForm({ ...form, momento: e.target.value })}
-          >
-            {MOMENTOS.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
         </div>
 
         <div className="form-group">
@@ -142,8 +127,8 @@ function Resultado({ resultado, onNuevo }) {
               <div className="mini-card" key={inc.id}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="fw-600 fs-13 mono">{inc.codigo}</span>
-                  <span className={`badge ${inc.gravedad === 'ALTA' ? 'danger' : 'warn'}`}>
-                    {inc.gravedad}
+                  <span className={`badge ${inc.gravedad === 'ALTA' ? 'danger' : 'neutral'}`}>
+                    {inc.gravedad ?? 'sin clasificar'}
                   </span>
                 </div>
                 <div className="fs-12 text-secondary">{inc.descripcion}</div>
@@ -218,7 +203,6 @@ export default function Checklist() {
     try {
       const { data } = await axios.post('/api/mantencion/checklist/', {
         bus_id: form.bus_id,
-        momento: form.momento,
         postura_id: form.postura_id || null,
       });
       setChecklist(data);
@@ -325,9 +309,9 @@ export default function Checklist() {
               <div className="flex-1" style={{ minWidth: 0 }}>
                 <div className="fw-600">{checklist.bus.numero} · {checklist.bus.patente}</div>
                 <div className="fs-12 text-muted">
-                  {checklist.reportado_por.nombre} · {
-                    MOMENTOS.find(m => m.value === checklist.momento)?.label
-                  }
+                  {checklist.reportado_por.nombre}
+                  {checklist.postura_codigo
+                    ? ` · postura ${checklist.postura_codigo}` : ''}
                 </div>
               </div>
               <div className="text-right" style={{ flexShrink: 0 }}>

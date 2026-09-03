@@ -4,7 +4,7 @@ from .views import (
     PlantillaChecklistView,
     ChecklistListCreateView, ChecklistDetailView,
     ChecklistResponderView, ChecklistCompletarView,
-    IncidenteListCreateView, IncidenteEstadoView,
+    IncidenteListCreateView, IncidenteEstadoView, IncidenteClasificarView,
     TableroView, OrdenListCreateView, OrdenAsignarView,
     OrdenIniciarView, OrdenCompletarView,
     BusLiberarView, BusNoOperativoView,
@@ -31,6 +31,7 @@ urlpatterns = [
     # Incidentes
     path('incidentes/', IncidenteListCreateView.as_view(), name='incidente-list-create'),
     path('incidentes/<int:pk>/estado/', IncidenteEstadoView.as_view(), name='incidente-estado'),
+    path('incidentes/<int:pk>/clasificar/', IncidenteClasificarView.as_view(), name='incidente-clasificar'),
 
     # Taller
     path('tablero/', TableroView.as_view(), name='taller-tablero'),

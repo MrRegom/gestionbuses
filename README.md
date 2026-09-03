@@ -34,8 +34,12 @@ El sistema soporta los siguientes procesos clave basados en la operación real:
 - **Checklist Digital:** Si hay una falla o novedad durante el viaje, el conductor la registra **directamente en su celular** a través de la App SGO, en lugar de anotarla en papel al final del viaje.
 
 ### 3. Llegada y Recepción (Terminal Santiago)
-- **Checklist de Cierre:** El bus llega al terminal. El proceso de entrega es digital.
+- **Checklist de Cierre:** El bus llega al terminal y ahí se hace la revisión. Es **una por viaje**: Operaciones confirmó que el checklist se llena al llegar a Santiago, no antes de salir.
+- **La plantilla está agrupada por oficio** —mecánico, eléctrico, carrocero, vulcanización, informática— porque así está la hoja de papel: el jefe de mecánicos la lee y reparte el trabajo según quién sabe hacer cada cosa.
+- **El conductor detalla, Mantención clasifica.** Quien reporta describe la falla y nada más; la gravedad y la prioridad las decide el taller. Una falla recién reportada queda *sin clasificar* hasta que la vea.
 - **Eliminación del Digitador:** Ya no es necesario que un digitador transcriba papeles. La información de fallas viaja instantáneamente a la cola de trabajo de Mantención.
+
+> **Qué deja un bus fuera de servicio de inmediato**, según Operaciones: fuga de aire en los circuitos, falla de frenos, falla de dirección, falla en el sistema de frenos auxiliares y parabrisas rotos. Aparte, la presencia de chinches. Esos son los ítems marcados como críticos en la plantilla, y son los únicos que deberían estarlo mientras no lo confirmen ellos.
 
 ### 4. Mantención (Taller / Pozos Mecánicos)
 - **Revisión y Asignación:** El Jefe de Mecánicos ve las fallas reportadas en tiempo real. Asigna el trabajo a sus mecánicos según especialidad.

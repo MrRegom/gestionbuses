@@ -84,15 +84,16 @@ DIAGNOSTICOS = [
     'Rectificado y balanceo. Queda operativo.',
 ]
 
-# A qué especialidad del taller manda cada categoría del checklist.
-# Las claves son los nombres que carga seed_checklist.py: si no calzan,
-# todo termina en GENERAL y el indicador por especialidad no dice nada.
+# La categoría del checklist ya es la especialidad del taller: la hoja
+# de papel está organizada por quién arregla cada cosa. Solo hace falta
+# traducir los nombres que no calzan literalmente.
 ESPECIALIDAD_POR_CATEGORIA = {
-    'Motor y Mecánica': 'MOTOR',
-    'Luces y Eléctrico': 'ELECTRICO',
-    'Interior del Bus': 'CARROCERIA',
-    'Carrocería y Exterior': 'CARROCERIA',
-    'Documentación y Seguridad': 'GENERAL',
+    'Mecánico': 'MECANICO',
+    'Eléctrico': 'ELECTRICO',
+    'Carrocero': 'CARROCERO',
+    'Vulcanización': 'VULCANIZADOR',
+    'Informática': 'INFORMATICA',
+    'Sanidad': 'CARROCERO',
 }
 
 
@@ -292,7 +293,6 @@ def hacer_checklists(rng, posturas, items):
         checklist = ChecklistService.iniciar(
             bus_id=postura.bus_id,
             persona_id=rng.choice(tripulantes).persona_id,
-            momento=Checklist.Momento.SALIDA,
             postura_id=postura.id,
         )
 
@@ -346,7 +346,6 @@ def _checklist_llegada(rng, postura, items):
     checklist = ChecklistService.iniciar(
         bus_id=postura.bus_id,
         persona_id=rng.choice(list(postura.tripulacion.all())).persona_id,
-        momento=Checklist.Momento.LLEGADA,
         postura_id=postura.id,
     )
 
@@ -389,12 +388,11 @@ def reportes_en_ruta(rng, posturas):
         if not tripulantes:
             continue
 
-        descripcion, gravedad = rng.choice(REPORTES_EN_RUTA)
+        descripcion, _ = rng.choice(REPORTES_EN_RUTA)
         incidente = IncidenteService.reportar_en_ruta(
             bus_id=postura.bus_id,
             persona_id=rng.choice(tripulantes).persona_id,
             descripcion=descripcion,
-            gravedad=gravedad,
             postura_id=postura.id,
         )
         retrasar(Incidente, [incidente.id],
@@ -436,7 +434,7 @@ def trabajar_en_taller(rng, hoy):
         categoria = incidente.item.categoria.nombre if incidente.item else None
         orden = TallerService.crear_desde_incidente(
             incidente_id=incidente.id,
-            especialidad=ESPECIALIDAD_POR_CATEGORIA.get(categoria, 'GENERAL'),
+            especialidad=ESPECIALIDAD_POR_CATEGORIA.get(categoria, 'MECANICO'),
         )
         creadas += 1
 

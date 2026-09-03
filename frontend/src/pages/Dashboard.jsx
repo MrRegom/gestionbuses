@@ -321,7 +321,7 @@ function PanelTripulacion({ datos }) {
         </div>
         <div className="card-footer">
           <Link to="/checklist" className="btn btn-primary w-full">
-            <ClipboardCheck size={15} /> Hacer checklist de salida
+            <ClipboardCheck size={15} /> Hacer checklist de llegada
           </Link>
         </div>
       </div>

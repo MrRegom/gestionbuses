@@ -78,7 +78,7 @@ class ChecklistSerializer(serializers.ModelSerializer):
         model = Checklist
         fields = [
             'id', 'bus', 'postura', 'postura_codigo', 'reportado_por',
-            'momento', 'estado', 'observaciones',
+            'estado', 'observaciones',
             'creado_en', 'completado_en',
             'total_respuestas', 'total_fallas', 'respuestas',
         ]
@@ -95,7 +95,7 @@ class ChecklistResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Checklist
         fields = [
-            'id', 'bus', 'postura_codigo', 'reportado_por', 'momento',
+            'id', 'bus', 'postura_codigo', 'reportado_por',
             'estado', 'creado_en', 'completado_en',
             'total_respuestas', 'total_fallas',
         ]

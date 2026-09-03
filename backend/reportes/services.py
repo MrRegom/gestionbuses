@@ -369,7 +369,10 @@ def _ind_checklists(inicio, fin):
         'total': checklists.count(),
         'completados': completados.count(),
         'con_falla': con_falla,
-        'por_momento': _conteo_por(checklists, 'momento'),
+        # Cuántos de esos checklists quedaron asociados a su servicio.
+        # Uno suelto —sin postura— es una revisión que no se puede
+        # cruzar después con el viaje que la originó.
+        'con_postura': checklists.filter(postura__isnull=False).count(),
         'fallas_frecuentes': [
             {
                 'item': fila['item__descripcion'],

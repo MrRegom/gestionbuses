@@ -53,7 +53,6 @@ class ChecklistListCreateView(APIView):
             checklist = ChecklistService.iniciar(
                 bus_id=request.data.get('bus_id'),
                 persona_id=persona_de(request).id,
-                momento=request.data.get('momento'),
                 postura_id=request.data.get('postura_id'),
             )
         except ValueError as e:
@@ -137,7 +136,6 @@ class IncidenteListCreateView(APIView):
                 bus_id=request.data.get('bus_id'),
                 persona_id=persona_de(request).id,
                 descripcion=request.data.get('descripcion', ''),
-                gravedad=request.data.get('gravedad', 'MEDIA'),
                 postura_id=request.data.get('postura_id'),
             )
         except ValueError as e:
@@ -145,6 +143,27 @@ class IncidenteListCreateView(APIView):
 
         return Response(IncidenteSerializer(incidente).data,
                         status=status.HTTP_201_CREATED)
+
+
+class IncidenteClasificarView(APIView):
+    """Mantención le pone gravedad a una falla reportada.
+
+    Es lo que hoy hace el jefe de mecánicos al leer el checklist: el
+    conductor detalla, él decide qué tan grave es. Por eso queda fuera
+    del alcance de la tripulación.
+    """
+    permission_classes = [RolPermitido]
+    roles_permitidos = TALLER
+
+    def post(self, request, pk):
+        try:
+            incidente = IncidenteService.clasificar(
+                pk, request.data.get('gravedad'))
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(IncidenteSerializer(incidente).data,
+                        status=status.HTTP_200_OK)
 
 
 class IncidenteEstadoView(APIView):

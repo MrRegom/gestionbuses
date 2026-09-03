@@ -1,16 +1,33 @@
 """
-Semilla de la plantilla del checklist.
+Plantilla del checklist de llegada a Santiago.
 
-Los 28 ítems provienen de prototipo/js/app.js (DATA.checklist_items), que
-es la definición operativa que ya se había validado con PlussChile.
+La estructura sale del formulario físico que se levantó con Operaciones:
+"novedades informáticas, mantención y novedades del sistema mecánico,
+eléctrico, carrocero y vulcanización". Por eso las categorías son
+oficios y no partes del bus: el jefe de mecánicos lee la hoja y reparte
+el trabajo según quién sabe hacer cada cosa.
 
-`critico=True` marca los ítems cuya falla deja el bus FUERA_SERVICIO en
-vez de solo MANTENIMIENTO: son los que impiden legalmente circular o
-comprometen la seguridad de los pasajeros.
+LOS ÍTEMS SON PROVISORIOS. Están armados a partir de lo que Operaciones
+alcanzó a describir, no copiados de su hoja. Hay que sentarse con el
+papel que usan hoy y corregirlos. Se pueden editar desde Configuración
+sin tocar este archivo; esta semilla solo sirve para arrancar.
+
+LO QUE SÍ ES REAL son los ítems marcados como críticos. Operaciones
+nombró exactamente qué deja un bus fuera de servicio de inmediato:
+
+    "No terminar la falla sobre todo si es fuga de aire en los
+     circuitos, falla de frenos, falla de dirección o falla en sistema
+     de frenos auxiliares, parabrisas rotos"
+
+y aparte, como motivo de bloqueo: "presencia de chinches".
+
+Ningún otro ítem debería estar marcado como crítico mientras no lo
+confirmen ellos.
 
 Uso:  python seed_checklist.py
 """
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgo_project.settings')
@@ -19,75 +36,94 @@ django.setup()
 from mantencion.models import CategoriaChecklist, ItemChecklist  # noqa: E402
 
 
-# (categoría, [(descripción, crítico), ...])
+# (categoría, orden, [(ítem, crítico)])
+#
+# El nombre de cada categoría coincide con la especialidad del taller a
+# la que se deriva el trabajo. No es casualidad: es cómo está armada la
+# hoja de papel.
 PLANTILLA = [
-    ('Documentación y Seguridad', [
-        ('Licencia de conducir vigente',        True),
-        ('Padrón del vehículo',                 True),
-        ('Permiso de circulación',              True),
-        ('Seguro SOAP vigente',                 True),
-        ('Cinturones de seguridad (todos)',     True),
-        ('Extintores cargados y sellados',      True),
+    ('Mecánico', 1, [
+        ('Sistema de frenos', True),
+        ('Frenos auxiliares / retardador', True),
+        ('Dirección', True),
+        ('Circuito de aire, sin fugas', True),
+        ('Nivel de aceite de motor', False),
+        ('Nivel de agua / refrigerante', False),
+        ('Nivel de líquido de frenos', False),
+        ('Embrague y caja', False),
+        ('Suspensión y amortiguadores', False),
+        ('Ruidos o vibraciones no habituales', False),
     ]),
-    ('Motor y Mecánica', [
-        ('Nivel de aceite motor',               False),
-        ('Nivel de agua radiador',              False),
-        ('Nivel de frenos',                     True),
-        ('Presión neumáticos (todos)',          True),
-        ('Freno de mano operativo',             True),
-        ('Dirección sin juego excesivo',        True),
+    ('Eléctrico', 2, [
+        ('Luces altas y bajas', False),
+        ('Luces traseras y de freno', False),
+        ('Intermitentes y balizas', False),
+        ('Luces de emergencia', False),
+        ('Alternador y carga de batería', False),
+        ('Bocina', False),
+        ('Limpiaparabrisas', False),
+        ('Aire acondicionado / calefacción', False),
     ]),
-    ('Luces y Eléctrico', [
-        ('Luces delanteras altas/bajas',        True),
-        ('Luces traseras / stop',               True),
-        ('Luces de emergencia',                 True),
-        ('Panel de instrumentos operativo',     False),
-        ('Bocina',                              False),
-        ('Limpiaparabrisas',                    False),
+    ('Carrocero', 3, [
+        ('Parabrisas sin trizaduras', True),
+        ('Puertas de servicio abren y cierran', False),
+        ('Maleteros cierran y aseguran', False),
+        ('Espejos completos y firmes', False),
+        ('Asientos y cinturones sin daño', False),
+        ('Baño operativo', False),
+        ('Daños en carrocería', False),
     ]),
-    ('Interior del Bus', [
-        ('Asientos sin daños',                  False),
-        ('Salidas de emergencia sin obstrucción', True),
-        ('Pasillos libres',                     False),
-        ('Aire acondicionado operativo',        False),
-        ('Sistema multimedia',                  False),
-        ('Boleterías y validadores',            False),
+    ('Vulcanización', 4, [
+        ('Neumáticos delanteros', False),
+        ('Neumáticos traseros', False),
+        ('Presión de neumáticos', False),
+        ('Neumático de repuesto', False),
+        ('Pernos y tuercas de rueda', False),
     ]),
-    ('Carrocería y Exterior', [
-        ('Sin daños en carrocería',             False),
-        ('Espejos laterales en posición',       True),
-        ('Maleteros se cierran correctamente',  False),
-        ('Neumático de repuesto',               False),
+    ('Informática', 5, [
+        ('Equipo de monitoreo / GPS', False),
+        ('Validador y sistema de boletos', False),
+        ('Pantallas y multimedia', False),
+        ('Cámaras', False),
+    ]),
+    # Va aparte porque no la arregla un mecánico: el bus se saca de
+    # servicio y se fumiga. Operaciones la nombró como motivo de bloqueo
+    # junto a las fallas mecánicas.
+    ('Sanidad', 6, [
+        ('Sin presencia de chinches u otra plaga', True),
+        ('Aseo interior realizado', False),
     ]),
 ]
 
 
 def run():
-    total_items = 0
-    criticos = 0
+    categorias = items = criticos = 0
 
-    for orden_cat, (nombre_cat, items) in enumerate(PLANTILLA):
+    for nombre, orden, lista in PLANTILLA:
         categoria, creada = CategoriaChecklist.objects.update_or_create(
-            nombre=nombre_cat,
-            defaults={'orden': orden_cat, 'activa': True},
+            nombre=nombre,
+            defaults={'orden': orden, 'activa': True},
         )
-        print(f'{"+" if creada else "="} {nombre_cat}')
+        categorias += 1
 
-        for orden_item, (descripcion, critico) in enumerate(items):
+        for i, (descripcion, critico) in enumerate(lista, start=1):
             ItemChecklist.objects.update_or_create(
                 categoria=categoria,
                 descripcion=descripcion,
-                defaults={'orden': orden_item, 'critico': critico, 'activo': True},
+                defaults={'orden': i, 'critico': critico, 'activo': True},
             )
-            total_items += 1
-            if critico:
-                criticos += 1
-            print(f'    {"[!]" if critico else "[ ]"} {descripcion}')
+            items += 1
+            criticos += 1 if critico else 0
+
+        marca = '+' if creada else '='
+        print(f'{marca} {nombre:16} {len(lista):2} ítems')
 
     print()
-    print(f'Plantilla lista: {len(PLANTILLA)} categorías, {total_items} ítems '
-          f'({criticos} críticos).')
-    print('[!] = su falla deja el bus FUERA DE SERVICIO')
+    print(f'{categorias} categorías, {items} ítems, {criticos} críticos.')
+    print()
+    print('Los ítems son provisorios: hay que contrastarlos con la hoja')
+    print('que usa la tripulación hoy. Se editan desde Configuración.')
+    print('Los críticos sí salen de lo que nombró Operaciones.')
 
 
 if __name__ == '__main__':

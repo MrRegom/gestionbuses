@@ -14,8 +14,12 @@ const COLUMNAS = [
 ];
 
 const ESPECIALIDADES = [
-  ['MOTOR', 'Motor'], ['FRENOS', 'Frenos'], ['SUSPENSION', 'Suspensión'],
-  ['ELECTRICO', 'Eléctrico'], ['CARROCERIA', 'Carrocería'], ['GENERAL', 'General'],
+  /* Los oficios del taller, tal como los nombró Operaciones: el jefe de
+     mecánicos lee el checklist y reparte según quién sabe hacer cada
+     cosa. No son áreas del bus, son personas. */
+  ['MECANICO', 'Mecánico'], ['ELECTRICO', 'Eléctrico'],
+  ['CARROCERO', 'Carrocero'], ['VULCANIZADOR', 'Vulcanizador'],
+  ['INFORMATICA', 'Informática'],
 ];
 
 const PRIORIDADES = [['ALTA', 'Alta'], ['MEDIA', 'Media'], ['BAJA', 'Baja']];
@@ -230,7 +234,7 @@ export default function Mantenimiento() {
           <div className="card-body" style={{ padding: 0 }}>
             {bandeja.map(inc => (
               <div className="alert-item" key={inc.id} style={{ padding: 'var(--sp-3) var(--sp-5)' }}>
-                <span className={`alert-item-icon ${inc.gravedad === 'ALTA' ? 'danger' : 'warn'}`}>
+                <span className={`alert-item-icon ${inc.gravedad === 'ALTA' ? 'danger' : 'neutral'}`}>
                   <AlertTriangle size={15} />
                 </span>
                 <div className="flex-1" style={{ minWidth: 0 }}>
@@ -414,7 +418,11 @@ export default function Mantenimiento() {
                 value={form.prioridad ?? ''}
                 onChange={e => setForm({ ...form, prioridad: e.target.value })}
               >
-                <option value="">Heredar de la gravedad ({dialogo.dato.gravedad})</option>
+                <option value="">
+                  {dialogo.dato.gravedad
+                    ? `Heredar de la gravedad (${dialogo.dato.gravedad})`
+                    : 'Media — la falla aún no está clasificada'}
+                </option>
                 {PRIORIDADES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>

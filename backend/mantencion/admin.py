@@ -32,8 +32,8 @@ class RespuestaChecklistInline(admin.TabularInline):
 
 @admin.register(Checklist)
 class ChecklistAdmin(admin.ModelAdmin):
-    list_display = ('id', 'bus', 'momento', 'estado', 'reportado_por', 'creado_en')
-    list_filter = ('momento', 'estado')
+    list_display = ('id', 'bus', 'estado', 'reportado_por', 'creado_en')
+    list_filter = ('estado',)
     inlines = [RespuestaChecklistInline]
 
 

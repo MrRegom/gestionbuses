@@ -13,16 +13,19 @@ const ESTADO_POSTURA = {
   LISTA: 'Lista', ALERTA: 'Alerta', PROBLEMA: 'Problema',
   EN_CURSO: 'En curso', COMPLETA: 'Completa',
 };
-const MOMENTO = { SALIDA: 'Salida', LLEGADA: 'Llegada' };
-const GRAVEDAD = { ALTA: 'Alta', MEDIA: 'Media', BAJA: 'Baja' };
+const GRAVEDAD = {
+  ALTA: 'Alta', MEDIA: 'Media', BAJA: 'Baja',
+  // Reportada por la tripulación y aún sin triar por Mantención.
+  null: 'Sin clasificar',
+};
 const ORIGEN = { CHECKLIST: 'Detectado en checklist', RUTA: 'Reportado en ruta' };
 const ESTADO_ORDEN = {
   SIN_ASIGNAR: 'Sin asignar', PENDIENTE: 'Pendiente',
   EN_PROCESO: 'En proceso', COMPLETADO: 'Completado',
 };
 const ESPECIALIDAD = {
-  MOTOR: 'Motor', FRENOS: 'Frenos', SUSPENSION: 'Suspensión',
-  ELECTRICO: 'Eléctrico', CARROCERIA: 'Carrocería', GENERAL: 'General',
+  MECANICO: 'Mecánico', ELECTRICO: 'Eléctrico', CARROCERO: 'Carrocero',
+  VULCANIZADOR: 'Vulcanizador', INFORMATICA: 'Informática',
 };
 const ESTADO_BUS = {
   DISPONIBLE: 'Disponible', EN_SERVICIO: 'En servicio',
@@ -193,10 +196,12 @@ function Informe({ d }) {
             <Cifra label="Realizados" valor={d.checklists.total} />
             <Cifra label="Completados" valor={d.checklists.completados} />
             <Cifra label="Con al menos una falla" valor={d.checklists.con_falla} />
+            <Cifra label="Ligados a su servicio" valor={d.checklists.con_postura} />
           </div>
           <Barra parte={d.checklists.con_falla} total={d.checklists.total}
                  tono="warn" texto="revisiones que detectaron algo" />
-          <Distribucion titulo="Por momento" datos={d.checklists.por_momento} etiquetas={MOMENTO} />
+          <Barra parte={d.checklists.con_postura} total={d.checklists.total}
+                 tono="info" texto="revisiones asociadas a su servicio" />
         </Tarjeta>
       </div>
 

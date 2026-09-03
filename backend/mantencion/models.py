@@ -49,9 +49,17 @@ class ItemChecklist(models.Model):
 #  CHECKLIST EJECUTADO
 # ══════════════════════════════════════════════════════════════
 class Checklist(models.Model):
-    class Momento(models.TextChoices):
-        SALIDA = 'SALIDA', 'Preventivo de salida'
-        LLEGADA = 'LLEGADA', 'Recepción en terminal'
+    """La revisión del bus al llegar a Santiago.
+
+    Es una por viaje. Operaciones lo confirmó así: el checklist se hace
+    cuando el bus llega al terminal, no antes de salir. Llegó a existir
+    aquí un checklist "de salida" que no corresponde a ningún paso de su
+    proceso.
+
+    En el papel es la hoja que el conductor entrega y que hoy pasa por
+    el digitador antes de llegar a Mantención. El objetivo del sistema
+    es justamente saltarse ese tramo.
+    """
 
     class Estado(models.TextChoices):
         EN_CURSO = 'EN_CURSO', 'En curso'
@@ -70,9 +78,6 @@ class Checklist(models.Model):
     reportado_por = models.ForeignKey(
         'operaciones.Persona', on_delete=models.PROTECT, related_name='checklists'
     )
-    momento = models.CharField(
-        max_length=10, choices=Momento.choices, default=Momento.SALIDA
-    )
     estado = models.CharField(
         max_length=12, choices=Estado.choices, default=Estado.EN_CURSO
     )
@@ -86,7 +91,7 @@ class Checklist(models.Model):
         ordering = ['-creado_en']
 
     def __str__(self):
-        return f'Checklist {self.get_momento_display()} · {self.bus.numero}'
+        return f'Checklist de {self.bus.numero} · {self.creado_en:%d-%m}'
 
     @property
     def total_respuestas(self):
@@ -128,9 +133,15 @@ class RespuestaChecklist(models.Model):
 # ══════════════════════════════════════════════════════════════
 class Incidente(models.Model):
     class Gravedad(models.TextChoices):
+        """La clasifica Mantención, no quien reporta.
+
+        Operaciones fue explícito: el conductor "solo detalla la falla,
+        luego Mantención decide qué hacer". Por eso el campo admite nulo:
+        una falla recién reportada todavía no está clasificada.
+        """
         BAJA = 'BAJA', 'Baja'
         MEDIA = 'MEDIA', 'Media'
-        ALTA = 'ALTA', 'Alta'
+        ALTA = 'ALTA', 'Alta' 
 
     class Estado(models.TextChoices):
         ABIERTO = 'ABIERTO', 'Abierto'
@@ -158,7 +169,8 @@ class Incidente(models.Model):
     )
     descripcion = models.TextField()
     gravedad = models.CharField(
-        max_length=6, choices=Gravedad.choices, default=Gravedad.MEDIA
+        max_length=6, choices=Gravedad.choices, null=True, blank=True,
+        help_text='Nulo mientras Mantención no la haya clasificado',
     )
     estado = models.CharField(
         max_length=12, choices=Estado.choices, default=Estado.ABIERTO
@@ -209,12 +221,18 @@ class OrdenTrabajo(models.Model):
         BAJA = 'BAJA', 'Baja'
 
     class Especialidad(models.TextChoices):
-        MOTOR = 'MOTOR', 'Motor'
-        FRENOS = 'FRENOS', 'Frenos'
-        SUSPENSION = 'SUSPENSION', 'Suspensión'
+        """Los oficios del taller, tal como los nombró Operaciones.
+
+        No son áreas del bus sino personas: el jefe de mecánicos lee el
+        checklist y reparte según quién sabe hacer cada cosa. Por eso la
+        plantilla del checklist está agrupada igual —lo que se revisa se
+        ordena por quien lo va a arreglar—.
+        """
+        MECANICO = 'MECANICO', 'Mecánico'
         ELECTRICO = 'ELECTRICO', 'Eléctrico'
-        CARROCERIA = 'CARROCERIA', 'Carrocería'
-        GENERAL = 'GENERAL', 'General'
+        CARROCERO = 'CARROCERO', 'Carrocero'
+        VULCANIZADOR = 'VULCANIZADOR', 'Vulcanizador'
+        INFORMATICA = 'INFORMATICA', 'Informática' 
 
     # Se rellena justo después del INSERT, a partir del id ya asignado.
     # Calcularlo antes (max(id)+1) crea una carrera: dos peticiones
@@ -230,7 +248,8 @@ class OrdenTrabajo(models.Model):
     )
     descripcion = models.TextField()
     especialidad = models.CharField(
-        max_length=12, choices=Especialidad.choices, default=Especialidad.GENERAL
+        max_length=12, choices=Especialidad.choices,
+        default=Especialidad.MECANICO
     )
     tipo = models.CharField(
         max_length=10, choices=Tipo.choices, default=Tipo.CORRECTIVO
