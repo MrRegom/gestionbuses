@@ -88,8 +88,7 @@ export default function Layout() {
           </button>
 
           <div className="topbar-brand">
-            <span className="logo-mark">P+</span>
-            <span className="topbar-brand-name">PlussChile</span>
+            <img src="/logo.png" alt="PlussChile" className="brand-logo" />
           </div>
 
           <div className="topbar-titles">
@@ -131,11 +130,7 @@ export default function Layout() {
             desktop. No lleva botón de cerrar porque la hamburguesa del
             topbar ya es una X y queda justo encima. */}
         <div className="sidebar-logo">
-          <span className="logo-mark">P+</span>
-          <div>
-            <div className="logo-name">PlussChile</div>
-            <div className="logo-sub">Sistema Operacional</div>
-          </div>
+          <img src="/logo.png" alt="PlussChile" className="brand-logo" />
         </div>
 
         <nav className="sidebar-nav">

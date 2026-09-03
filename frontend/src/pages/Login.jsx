@@ -28,11 +28,8 @@ export default function Login() {
     <div className="login-shell">
       <div className="login-card">
         <div className="login-brand">
-          <span className="logo-mark" style={{ width: 40, height: 40, fontSize: 16 }}>P+</span>
-          <div>
-            <div className="login-title">PlussChile</div>
-            <div className="login-sub">Sistema de Gestión Operacional</div>
-          </div>
+          <img src="/logo.png" alt="PlussChile" className="brand-logo lg" />
+          <div className="login-sub">Sistema de Gestión Operacional</div>
         </div>
 
         <form onSubmit={enviar} className="flex flex-col gap-4">

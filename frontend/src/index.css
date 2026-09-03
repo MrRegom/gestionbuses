@@ -277,7 +277,7 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  height: 24px;
+  height: 28px;
   padding-right: var(--sp-4);
   border-right: 1px solid var(--border);
   flex-shrink: 0;
@@ -543,6 +543,26 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
   letter-spacing: -.03em;
   flex-shrink: 0;
 }
+
+/* Logotipo de la empresa.
+   Se dimensiona por alto y el ancho lo pone la imagen: el archivo es
+   un logotipo horizontal —pluma y palabra juntas— y forzarle un ancho
+   lo deformaría. Como ya dice "PlussChile", donde va el logotipo se
+   quita el texto repetido y queda solo lo que agrega información. */
+.brand-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+/* En el login el logotipo es el elemento principal, no un adorno al
+   lado del título: se dimensiona por ancho —46% de la tarjeta— para
+   que se lea la palabra y no solo la pluma. */
+.brand-logo.lg {
+  height: auto;
+  width: 176px;
+  max-width: 100%;
+}
 .logo-name { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.2; }
 .logo-sub  { font-size: 11px; color: var(--text-muted); line-height: 1.2; }
 
@@ -653,14 +673,17 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
   padding: var(--sp-8) var(--sp-6);
 }
 
+/* El logotipo manda: la marca va arriba y debajo, en pequeño, qué es
+   este sistema. Antes iban en paralelo porque el cuadrado "P+" no
+   decía el nombre y había que escribirlo al lado. */
 .login-brand {
   display: flex;
-  align-items: center;
-  gap: var(--sp-3);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
   margin-bottom: var(--sp-6);
 }
-.login-title { font-size: 17px; font-weight: 600; letter-spacing: -.02em; color: var(--text-primary); }
-.login-sub   { font-size: 12px; color: var(--text-muted); }
+.login-sub { font-size: 12px; color: var(--text-muted); }
 
 .login-pie {
   display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
