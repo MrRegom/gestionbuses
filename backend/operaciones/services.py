@@ -580,6 +580,151 @@ class TurnoService:
         return filas
 
 
+class CuentaService:
+    """Alta y baja de accesos a la aplicación.
+
+    La contraseña inicial se genera al azar y se muestra una sola vez,
+    para que Operaciones se la dicte a la persona. No se guarda en
+    ninguna parte legible: Django solo conserva su hash.
+    """
+
+    # Sin caracteres que se confundan al dictar: ni O ni 0, ni l ni 1.
+    ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    LARGO_CLAVE = 10
+
+    @staticmethod
+    def _clave_nueva():
+        import secrets
+        return ''.join(secrets.choice(CuentaService.ALFABETO)
+                       for _ in range(CuentaService.LARGO_CLAVE))
+
+    @staticmethod
+    def sugerir_usuario(persona):
+        """Inicial del nombre más el primer apellido, como las que ya hay.
+
+        Es una sugerencia: Operaciones la puede cambiar. Si choca con una
+        existente se le agrega un número.
+        """
+        from django.contrib.auth.models import User
+        import unicodedata
+
+        partes = [p for p in persona.nombre.split() if p]
+        if not partes:
+            base = 'usuario'
+        elif len(partes) == 1:
+            base = partes[0]
+        else:
+            base = partes[0][0] + partes[1]
+
+        base = unicodedata.normalize('NFKD', base.lower())
+        base = ''.join(c for c in base if c.isascii() and c.isalnum()) or 'usuario'
+
+        candidato, n = base, 1
+        while User.objects.filter(username=candidato).exists():
+            n += 1
+            candidato = f'{base}{n}'
+        return candidato
+
+    @staticmethod
+    @transaction.atomic
+    def crear(persona_id: int, username=None):
+        """Le da acceso a una persona. Devuelve (persona, clave)."""
+        from django.contrib.auth.models import User
+        from .repositories import PersonaRepository
+
+        persona = PersonaRepository.get_persona_by_id(persona_id)
+        if not persona:
+            raise ValueError('Persona no encontrada')
+
+        if persona.usuario_id:
+            raise ValueError(
+                f'{persona.nombre} ya tiene cuenta ({persona.usuario.username}). '
+                'Si perdió la clave, reiníciala.'
+            )
+
+        username = (username or '').strip() or CuentaService.sugerir_usuario(persona)
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValueError(f'El usuario "{username}" ya está tomado.')
+
+        clave = CuentaService._clave_nueva()
+        usuario = User.objects.create_user(
+            username=username,
+            password=clave,
+            first_name=persona.nombre.split(' ')[0],
+        )
+
+        persona.usuario = usuario
+        persona.debe_cambiar_clave = True
+        persona.save(update_fields=['usuario', 'debe_cambiar_clave'])
+
+        return persona, clave
+
+    @staticmethod
+    @transaction.atomic
+    def reiniciar_clave(persona_id: int):
+        """Clave nueva para quien la perdió. Devuelve (persona, clave)."""
+        from .repositories import PersonaRepository
+
+        persona = PersonaRepository.get_persona_by_id(persona_id)
+        if not persona:
+            raise ValueError('Persona no encontrada')
+        if not persona.usuario_id:
+            raise ValueError(f'{persona.nombre} no tiene cuenta todavía.')
+
+        clave = CuentaService._clave_nueva()
+        persona.usuario.set_password(clave)
+        persona.usuario.is_active = True
+        persona.usuario.save(update_fields=['password', 'is_active'])
+
+        persona.debe_cambiar_clave = True
+        persona.save(update_fields=['debe_cambiar_clave'])
+
+        return persona, clave
+
+    @staticmethod
+    @transaction.atomic
+    def quitar_acceso(persona_id: int):
+        """Desactiva la cuenta sin borrarla.
+
+        Borrar el usuario dejaría huérfano lo que firmó: un checklist o
+        un incidente apuntan a la persona, pero quién entró a hacerlo es
+        el usuario. Desactivar cierra la puerta y conserva el rastro.
+        """
+        from .repositories import PersonaRepository
+
+        persona = PersonaRepository.get_persona_by_id(persona_id)
+        if not persona:
+            raise ValueError('Persona no encontrada')
+        if not persona.usuario_id:
+            raise ValueError(f'{persona.nombre} no tiene cuenta.')
+
+        persona.usuario.is_active = False
+        persona.usuario.save(update_fields=['is_active'])
+        return persona
+
+    @staticmethod
+    def cambiar_clave(persona, actual, nueva):
+        """La cambia la propia persona, con su clave vigente."""
+        if not persona or not persona.usuario_id:
+            raise ValueError('Tu cuenta no está vinculada a una persona.')
+
+        if not persona.usuario.check_password(actual or ''):
+            raise ValueError('La contraseña actual no es correcta.')
+
+        nueva = (nueva or '').strip()
+        if len(nueva) < 8:
+            raise ValueError('La contraseña nueva necesita al menos 8 caracteres.')
+        if nueva == actual:
+            raise ValueError('La contraseña nueva tiene que ser distinta.')
+
+        persona.usuario.set_password(nueva)
+        persona.usuario.save(update_fields=['password'])
+
+        persona.debe_cambiar_clave = False
+        persona.save(update_fields=['debe_cambiar_clave'])
+        return persona
+
+
 class CatalogoService:
     """Ciudades y rutas: el catálogo con el que se arman las posturas."""
 

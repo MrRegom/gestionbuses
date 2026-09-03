@@ -7,7 +7,7 @@ from .views import (
     RutaListView, RutaCreateView, RutaDetailView,
     ParametrosView,
     CicloTurnoListCreateView, CicloTurnoDetailView, TurnoPersonaView,
-    DotacionDelDiaView,
+    DotacionDelDiaView, CuentaPersonaView, ReiniciarClaveView,
     PosturaListCreateView, PosturaDetailView,
     AsignarTripulacionView, DesasignarTripulacionView,
     PosturaBusView, PersonalDisponibleView,
@@ -36,6 +36,10 @@ urlpatterns = [
     path('ciclos/', CicloTurnoListCreateView.as_view(), name='ciclo-list-create'),
     path('ciclos/<int:pk>/', CicloTurnoDetailView.as_view(), name='ciclo-detail'),
     path('personal/<int:pk>/turno/', TurnoPersonaView.as_view(), name='persona-turno'),
+
+    # Cuentas de acceso: quién puede entrar a la aplicación
+    path('personal/<int:pk>/cuenta/', CuentaPersonaView.as_view(), name='persona-cuenta'),
+    path('personal/<int:pk>/cuenta/reiniciar/', ReiniciarClaveView.as_view(), name='persona-clave'),
     path('dotacion-del-dia/', DotacionDelDiaView.as_view(), name='dotacion-dia'),
 
     # Posturas

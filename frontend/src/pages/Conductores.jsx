@@ -4,7 +4,7 @@ import axios from '../api';
 import { ETIQUETA_PUESTO } from '../config/dominio';
 import DialogoForm, { mensajeError } from '../components/DialogoForm';
 import {
-  Users, Plus, CheckCircle2, Check,
+  Users, Plus, CheckCircle2, Check, KeyRound,
   Search, ArrowRight, MapPin, Clock, Bus as BusIcon,
   X, Calendar, AlertCircle, RefreshCw, Edit, Trash2,
 } from 'lucide-react';
@@ -21,6 +21,135 @@ const avatarTone = id => AVATAR_TONES[id % AVATAR_TONES.length];
 const ESTADO_BADGE = { LISTA: 'ok', EN_CURSO: 'info', COMPLETA: 'ok', ALERTA: 'warn', PROBLEMA: 'danger' };
 const estadoBadge = e => <span className={`badge ${ESTADO_BADGE[e] ?? 'neutral'}`}>{e}</span>;
 
+
+
+/* ─ Cuenta de acceso ─────────────────────────────────────────
+   La clave inicial se muestra una sola vez: no se guarda en ninguna
+   parte legible ni se puede volver a ver. Si se pierde, se reinicia. */
+function CuentaPersona({ persona, onCambio }) {
+  const [sugerencia, setSugerencia] = useState('');
+  const [username, setUsername] = useState('');
+  const [clave, setClave] = useState(null);
+  const [trabajando, setTrabajando] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const tiene = Boolean(persona.usuario);
+
+  /* Solo depende de la persona. Al crear la cuenta `tiene` pasa de false
+     a true, y con esa dependencia el efecto volvía a correr y borraba la
+     clave recién mostrada antes de que nadie alcanzara a anotarla. */
+  useEffect(() => {
+    setClave(null);
+    setMsg(null);
+    axios.get(`/api/operaciones/personal/${persona.id}/cuenta/`)
+      .then(r => { setSugerencia(r.data.sugerencia); setUsername(r.data.sugerencia); })
+      .catch(() => setSugerencia(''));
+  }, [persona.id]);
+
+  const accion = async (fn, exito) => {
+    setTrabajando(true);
+    setMsg(null);
+    try {
+      const { data } = await fn();
+      if (data?.clave_inicial) setClave(data);
+      if (exito) setMsg({ type: 'ok', text: exito });
+      await onCambio();
+    } catch (err) {
+      setMsg({ type: 'err', text: mensajeError(err, 'No se pudo completar.') });
+    }
+    setTrabajando(false);
+  };
+
+  const crear = () => accion(
+    () => axios.post(`/api/operaciones/personal/${persona.id}/cuenta/`, { username }));
+
+  const reiniciar = () => {
+    if (!window.confirm(`¿Generar una contraseña nueva para ${persona.nombre}?`)) return;
+    accion(() => axios.post(`/api/operaciones/personal/${persona.id}/cuenta/reiniciar/`));
+  };
+
+  const quitar = () => {
+    if (!window.confirm(`¿Quitarle el acceso a ${persona.nombre}?`)) return;
+    accion(() => axios.delete(`/api/operaciones/personal/${persona.id}/cuenta/`),
+           'Acceso retirado. La cuenta queda desactivada, no se borra.');
+  };
+
+  return (
+    <div className="mb-4">
+      <div className="section-label">Acceso a la aplicación</div>
+
+      {clave && (
+        <div className="notice warn mb-3">
+          <span className="notice-icon"><KeyRound size={16} /></span>
+          <div className="notice-content">
+            <div className="notice-title">Anótala ahora: no se vuelve a mostrar</div>
+            <div className="notice-desc">
+              Usuario <strong className="mono">{clave.username}</strong>
+              {' · '}contraseña <strong className="mono">{clave.clave_inicial}</strong>
+            </div>
+            <div className="notice-desc mt-1">
+              Al entrar por primera vez el sistema le va a pedir que la cambie.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {msg && (
+        <div className={`notice ${msg.type === 'ok' ? 'ok' : 'danger'} mb-3`}>
+          <div className="notice-content">{msg.text}</div>
+        </div>
+      )}
+
+      {!tiene ? (
+        <>
+          <div className="info-box text-muted mb-3">
+            Sin cuenta. No puede entrar a la aplicación ni recibir avisos.
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="cta-user">Nombre de usuario</label>
+            <input id="cta-user" type="text" className="form-input mono"
+                   placeholder={sugerencia}
+                   value={username}
+                   onChange={e => setUsername(e.target.value.trim())} />
+          </div>
+          <button className="btn btn-primary btn-sm w-full"
+                  onClick={crear} disabled={trabajando || !username}>
+            {trabajando ? <><span className="spinner" /> Creando…</>
+                        : <><KeyRound size={14} /> Crear cuenta</>}
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="data-list mb-3">
+            <div className="data-row">
+              <span className="data-row-key">Usuario</span>
+              <span className="data-row-val mono">{persona.usuario_nombre ?? '—'}</span>
+            </div>
+            <div className="data-row">
+              <span className="data-row-key">Estado</span>
+              <span className="data-row-val">
+                {persona.debe_cambiar_clave
+                  ? <span className="badge warn">Debe cambiar la clave</span>
+                  : <span className="badge ok">Activa</span>}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn btn-secondary btn-sm flex-1"
+                    onClick={reiniciar} disabled={trabajando}>
+              Reiniciar clave
+            </button>
+            <button className="btn btn-secondary btn-sm flex-1"
+                    style={{ color: 'var(--danger)' }}
+                    onClick={quitar} disabled={trabajando}>
+              Quitar acceso
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 /* ─ Turno de la persona ──────────────────────────────────────
    Es el primer paso del flujo: el ciclo dice qué días está, y recién
@@ -230,6 +359,8 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar, onCam
             {esTripulacion && (
               <TurnoPersona persona={persona} onCambio={onCambio} />
             )}
+
+            <CuentaPersona persona={persona} onCambio={onCambio} />
 
             <div>
               <div className="flex items-center justify-between mb-3">

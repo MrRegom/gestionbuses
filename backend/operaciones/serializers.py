@@ -9,6 +9,11 @@ class PersonaSerializer(serializers.ModelSerializer):
     # `__all__` no trae las relaciones inversas, y el turno es lo que la
     # ficha necesita para decir de qué días dispone esa persona.
     turno = serializers.SerializerMethodField()
+    # El nombre de usuario, para poder mostrarlo sin pedir otra consulta.
+    # `usuario` a secas es solo el id.
+    usuario_nombre = serializers.CharField(
+        source='usuario.username', read_only=True, default=None,
+    )
 
     class Meta:
         model = Persona

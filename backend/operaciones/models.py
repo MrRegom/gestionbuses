@@ -30,6 +30,11 @@ class Persona(models.Model):
     )
     rut = models.CharField(max_length=15, unique=True)
     nombre = models.CharField(max_length=150)
+    # Una cuenta recién creada, o con la clave reiniciada, entra con una
+    # clave que alguien le dictó. Hasta que la cambie, la aplicación no
+    # la deja hacer otra cosa: si no, esa clave circula por WhatsApp y
+    # se queda ahí.
+    debe_cambiar_clave = models.BooleanField(default=False)
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.CONDUCTOR)
     tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.TITULAR)
 

@@ -4,6 +4,7 @@ import { puedeAcceder, rutaInicial } from './config/navigation';
 
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import CambiarClave from './pages/CambiarClave';
 import Dashboard from './pages/Dashboard';
 import Flota from './pages/Flota';
 import Conductores from './pages/Conductores';
@@ -47,6 +48,10 @@ function Aplicacion() {
   }
 
   if (!sesion) return <Login />;
+
+  /* Con la clave que le dictó Operaciones no se entra a la aplicación:
+     esa clave la conocen dos personas. Se cambia y recién ahí se pasa. */
+  if (sesion.debe_cambiar_clave) return <CambiarClave />;
 
   return (
     <Routes>

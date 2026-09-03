@@ -108,6 +108,7 @@ class AsignarTripulacionView(APIView):
 # ── PERSONAL ─────────────────────────────────────────────────
 from .services import (  # noqa: E402
     PersonalService, CatalogoService, ParametrosService, TurnoService,
+    CuentaService,
 )
 from .serializers import (  # noqa: E402
     CiudadSerializer, ParametrosSerializer, CicloTurnoSerializer,
@@ -499,4 +500,62 @@ class DotacionDelDiaView(APIView):
                 }
                 for f in filas
             ],
+        }, status=status.HTTP_200_OK)
+
+
+# ── CUENTAS DE ACCESO ────────────────────────────────────────
+# Quién entra a la aplicación lo decide Operaciones, no el taller ni la
+# propia tripulación. La contraseña inicial se genera y se muestra una
+# sola vez: ni el sistema la guarda legible ni la vuelve a mostrar.
+class CuentaPersonaView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request, pk):
+        """Un nombre de usuario sugerido, para prellenar el formulario."""
+        from .repositories import PersonaRepository
+
+        persona = PersonaRepository.get_persona_by_id(pk)
+        if not persona:
+            return Response({'error': 'Persona no encontrada'},
+                            status=status.HTTP_404_NOT_FOUND)
+        return Response({'sugerencia': CuentaService.sugerir_usuario(persona)},
+                        status=status.HTTP_200_OK)
+
+    def post(self, request, pk):
+        try:
+            persona, clave = CuentaService.crear(pk, request.data.get('username'))
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'persona': PersonaSerializer(persona).data,
+            'username': persona.usuario.username,
+            # Se devuelve una vez y no queda en ninguna parte. Si se
+            # pierde, se reinicia; no se puede recuperar.
+            'clave_inicial': clave,
+        }, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk):
+        try:
+            persona = CuentaService.quitar_acceso(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PersonaSerializer(persona).data, status=status.HTTP_200_OK)
+
+
+class ReiniciarClaveView(APIView):
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def post(self, request, pk):
+        try:
+            persona, clave = CuentaService.reiniciar_clave(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'persona': PersonaSerializer(persona).data,
+            'username': persona.usuario.username,
+            'clave_inicial': clave,
         }, status=status.HTTP_200_OK)

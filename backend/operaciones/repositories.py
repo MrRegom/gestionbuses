@@ -6,7 +6,7 @@ class PersonaRepository:
         # El turno viaja en el listado: sin precargarlo, el serializador
         # dispara una consulta por persona para leerlo.
         return (Persona.objects
-                .select_related('turno', 'turno__ciclo')
+                .select_related('turno', 'turno__ciclo', 'usuario')
                 .order_by('id'))
 
     @staticmethod

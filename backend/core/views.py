@@ -33,6 +33,9 @@ def _sesion(persona):
         # `HORAS_MAX = 9` escrito a mano que quedó desfasado el día que
         # Operaciones confirmó que el tope real son cinco horas.
         'reglas': _reglas(),
+        # Con la clave recién dictada por Operaciones, la aplicación
+        # obliga a cambiarla antes de dejar hacer nada más.
+        'debe_cambiar_clave': persona.debe_cambiar_clave,
     }
 
 
@@ -139,3 +142,32 @@ class NotificacionesView(APIView):
         marcadas = NotificacionService.marcar_leidas(
             persona, request.data.get('ids'))
         return Response({'marcadas': marcadas}, status=status.HTTP_200_OK)
+
+
+class CambiarClaveView(APIView):
+    """La cambia la propia persona, con la suya vigente.
+
+    Deliberadamente no está en el módulo de Operaciones: cambiar la
+    propia contraseña no es administrar a nadie, y quien la cambia tiene
+    que poder hacerlo aunque su perfil no administre nada.
+    """
+    permission_classes = [TienePersona]
+
+    def post(self, request):
+        from operaciones.services import CuentaService
+
+        try:
+            CuentaService.cambiar_clave(
+                persona_de(request),
+                request.data.get('actual'),
+                request.data.get('nueva'),
+            )
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # La sesión sobrevive al cambio: Django la invalida al reescribir
+        # el hash si no se le avisa.
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, request.user)
+
+        return Response({'ok': True}, status=status.HTTP_200_OK)

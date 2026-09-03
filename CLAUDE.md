@@ -111,8 +111,8 @@ tiene que salir de ellos.
    horarios de salida? La frase "adelantar servicios" podría significar
    lo segundo, y eso sería una función que no existe.
 2. ¿Qué empresa provee el GPS interno y tiene API?
-3. ¿Quiénes de la tripulación necesitan cuenta en la app? Hoy no hay
-   pantalla para crearlas — salen de un script.
+3. ¿Quiénes de la tripulación necesitan cuenta en la app? Ya se crean
+   desde la ficha de la persona; falta decidir a quiénes dárselas.
 
 ## Arquitectura
 
@@ -158,6 +158,8 @@ vitrina para el cliente y **pierde todo lo que se cargue ahí**.
 
 Cuentas: `admin`, `operaciones`, `taller`, `monitoreo`, `vveliz`,
 `rherrera` — contraseña `sgo2026`. `admin` entra a todo y a `/admin`.
+Las de la tripulación se crean desde su ficha: la clave inicial se
+genera, se muestra una sola vez y su dueño la cambia al primer ingreso.
 
 ```bash
 python limpiar_operacion.py --si   # vacía el movimiento, conserva catálogos
@@ -187,10 +189,11 @@ Python hay que reiniciarlo** o se depura código viejo.
 
 Construido: turnos, planificación, corridas, flota, tripulación,
 checklist, incidentes, taller, dashboard por perfil, auditoría,
-configuración, notificaciones, autenticación por rol.
+configuración, notificaciones, autenticación por rol y cuentas de acceso.
 
-Pendiente: rastreo GPS, planilla de ruta, nómina de pasajeros, avisos
-por WhatsApp, y una pantalla para crear cuentas de acceso.
+Pendiente: **viajes** (marcar salida y llegada — es la parte de lo que
+daría el GPS que no depende de terceros), rastreo GPS, planilla de ruta,
+nómina de pasajeros y avisos por WhatsApp.
 
 Antes de producción: `DEBUG=True`, `SECRET_KEY` por defecto,
 `ALLOWED_HOSTS=['*']` y las contraseñas del seed. Y PostgreSQL.
