@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/flota/', include('flota.urls')),
     path('api/operaciones/', include('operaciones.urls')),
     path('api/mantencion/', include('mantencion.urls')),
+    path('api/reportes/', include('reportes.urls')),
 ]

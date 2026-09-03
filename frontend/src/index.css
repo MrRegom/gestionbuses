@@ -1112,6 +1112,10 @@ tbody tr.clickable { cursor: pointer; }
   flex-wrap: wrap;
   margin-bottom: var(--sp-5);
 }
+/* Los controles de la barra se dimensionan solos. Sin esto heredan el
+   `width: 100%` de .form-input y, al haber flex-wrap, cada uno se lleva
+   una línea entera: la barra de fechas quedaba en tres pisos. */
+.filter-bar .form-input { width: auto; min-width: 150px; }
 
 /* ═══════════════════════════════════════════════════════════
    13 · MODAL
@@ -1618,6 +1622,61 @@ tbody tr.clickable { cursor: pointer; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--sp-4); }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--sp-4); }
 .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: var(--sp-4); }
+
+/* ═══════════════════════════════════════════════════════════
+   20 · TABLERO E INDICADORES
+   ------------------------------------------------------------
+   El dashboard dejó de mostrar cifras fijas: cada aviso enlaza a
+   la pantalla donde se resuelve, así que .alert-item tiene que
+   comportarse como enlace sin parecerlo.
+   ═══════════════════════════════════════════════════════════ */
+a.alert-item {
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--r-md);
+  padding-inline: var(--sp-2);
+  margin-inline: calc(var(--sp-2) * -1);
+  transition: background var(--t-fast);
+}
+a.alert-item:hover { background: var(--bg-muted); }
+
+/* El total detrás de un KPI: "3 de 14". Es contexto, no la cifra. */
+.kpi-total {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  margin-left: var(--sp-1);
+}
+
+/* Ranking horizontal: qué ítem falla más, qué bus obliga a más
+   corridas. La barra es comparativa dentro de la lista, no un
+   porcentaje sobre un total absoluto. */
+.rank-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+.rank-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2) var(--sp-3);
+  align-items: baseline;
+}
+.rank-label { font-size: 13px; color: var(--text-primary); min-width: 0; }
+.rank-sub   { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.rank-n {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.rank-row .progress-track { grid-column: 1 / -1; }
+
+/* Apilado vertical uniforme: las tarjetas no traen margen propio. */
+.stack { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+/* Rejilla de cifras del período, más densa que .kpi-row */
+.cifra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-3);
+}
 
 /* ═══════════════════════════════════════════════════════════
    21 · RESPONSIVE

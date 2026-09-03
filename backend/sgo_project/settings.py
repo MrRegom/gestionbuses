@@ -125,9 +125,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es-cl'
 
-TIME_ZONE = 'UTC'
+# La operación ocurre en Chile y la planilla se lleva en hora local.
+# Con USE_TZ la base sigue guardando UTC; esto solo decide cómo se
+# interpreta "hoy". Dejarlo en UTC hacía que el día cambiara a las
+# 20:00 o 21:00 hora chilena, justo en medio del turno de tarde.
+TIME_ZONE = 'America/Santiago'
 
 USE_I18N = True
 

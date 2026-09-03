@@ -42,8 +42,11 @@ export const NAV_GROUPS = [
         label: 'Dashboard',
         short: 'Inicio',
         icon: LayoutDashboard,
-        title: 'Dashboard Operativo',
-        subtitle: 'Resumen en tiempo real',
+        // Se resuelve con `tituloDe`: el tablero cambia según el
+        // perfil. Este valor es el respaldo si el rol no está en la
+        // tabla.
+        title: 'Inicio',
+        subtitle: 'Resumen de la jornada',
         ready: true,
         roles: TODOS,
       },
@@ -202,6 +205,27 @@ export function puedeAcceder(rol, pathname) {
 export function rutaInicial(rol) {
   const grupos = navParaRol(rol);
   return grupos[0]?.items[0]?.path ?? '/';
+}
+
+/* El tablero de inicio no es la misma pantalla para todos: operaciones
+   ve la flota, el taller su bandeja y la tripulación su jornada. El
+   topbar tiene que decir lo mismo que la página, y en teléfono es el
+   único sitio donde el título se ve, porque el encabezado de la página
+   queda oculto. */
+const TITULO_INICIO = {
+  [ROLES.JEFE_OPERACIONES]: 'Dashboard Operativo',
+  [ROLES.MONITOREO]: 'Dashboard Operativo',
+  [ROLES.JEFE_MECANICOS]: 'Tablero de Taller',
+  [ROLES.MECANICO]: 'Tablero de Taller',
+  [ROLES.CONDUCTOR]: 'Mi jornada',
+  [ROLES.ASISTENTE]: 'Mi jornada',
+};
+
+/** Título de una entrada de navegación para un perfil dado. */
+export function tituloDe(item, rol) {
+  if (!item) return null;
+  if (item.id === 'dashboard') return TITULO_INICIO[rol] ?? item.title;
+  return item.title;
 }
 
 /** Metadatos de la ruta activa, para el título del topbar. */

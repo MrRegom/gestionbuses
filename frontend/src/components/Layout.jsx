@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, Bell, LogOut, MoreHorizontal } from 'lucide-react';
 import {
-  NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem, navParaRol, usaBottomNav,
+  NAV_ITEMS, BOTTOM_NAV_IDS, findNavItem, navParaRol, usaBottomNav, tituloDe,
 } from '../config/navigation';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,7 +22,7 @@ export default function Layout() {
   const drawerOpen = openedAt !== null && openedAt === location.pathname;
 
   const current = findNavItem(location.pathname);
-  const pageTitle = current?.title ?? 'SGO';
+  const pageTitle = tituloDe(current, sesion?.rol) ?? 'SGO';
   const pageSubtitle = current?.subtitle ?? 'Sistema de Gestión Operacional';
 
   const closeDrawer = useCallback(() => setOpenedAt(null), []);
