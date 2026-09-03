@@ -92,8 +92,61 @@ El proyecto está configurado para integración y despliegue continuo (CI/CD) ut
    - Levanta el backend como funciones *Serverless* (usando el archivo `wsgi.py`).
 4. **Producción:** En segundos, los cambios están en vivo en la URL pública: `gestionbuses.vercel.app`.
 
-### Notas Importantes sobre Vercel:
-Dado que Vercel es un entorno *Serverless* de **solo lectura**, la base de datos `db.sqlite3` no puede ser modificada permanentemente en producción a menos que se use un truco de escritura temporal en la carpeta `/tmp` (configurado en `settings.py`). Para una aplicación final de grado de producción, la base de datos deberá migrarse a un servicio externo (como PostgreSQL en Supabase, Render o AWS RDS).
+### Dónde se trabaja y dónde se muestra
+
+**El entorno de trabajo es el local. Vercel es solo la ventana para que el cliente mire.**
+
+La distinción importa porque en Vercel *no se puede guardar nada*. La base
+`db.sqlite3` viaja en el repositorio y Vercel la copia a `/tmp` en cada
+arranque, porque el sistema de archivos es de solo lectura. Cuando la función
+se recicla —tras un despliegue o tras un rato sin uso— esa copia vuelve a
+cero. Se pierde:
+
+- Todo lo que alguien haya cargado desde la aplicación: buses, posturas,
+  asignaciones, checklists.
+- Las sesiones abiertas, porque Django las guarda en la base. Por eso en
+  Vercel el sistema pide entrar de nuevo cada cierto tiempo.
+
+Lo que sí sobrevive es lo que está en el repositorio, que es la semilla. Por
+eso el demo siempre vuelve a verse igual.
+
+En consecuencia:
+
+| | Local | Vercel |
+|---|---|---|
+| Se guarda lo que cargas | Sí | No |
+| Sesión estable | Sí | Se cae al reciclar |
+| Sirve para trabajar | Sí | No |
+| Sirve para mostrar | — | Sí |
+
+Los datos que se vean en el demo son los que estaban en `db.sqlite3` al hacer
+el último `git push`: lo que se trabaja en local termina siendo lo que el
+cliente ve.
+
+### Levantar el entorno local
+
+Dos terminales, una por servicio:
+
+```bash
+cd backend && python manage.py runserver
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+La aplicación queda en `http://localhost:5173`. Vite reenvía `/api` a Django
+en el puerto 8000 (ver `vite.config.js`), igual que Vercel en producción.
+
+### Cuándo dejar de trabajar así
+
+Este arreglo funciona mientras el sistema se construye y se revisa. Deja de
+servir el día que haya usuarios reales cargando datos, porque entonces hace
+falta que lo cargado no se pierda y que dos personas puedan escribir a la vez
+—dos cosas que SQLite sobre `/tmp` no da. Ese es el momento de migrar a
+PostgreSQL (Neon, Supabase, Render) y de resolver lo que queda pendiente en
+`settings.py`: `DEBUG`, la `SECRET_KEY` por defecto y las contraseñas de
+desarrollo que hoy están en `seed_usuarios.py`.
 
 ---
 
