@@ -14,7 +14,8 @@ from operaciones.models import Persona
 OPERACIONES = {Persona.Rol.JEFE_OPERACIONES, Persona.Rol.MONITOREO}
 TALLER = {Persona.Rol.JEFE_MECANICOS, Persona.Rol.MECANICO}
 TRIPULACION = {Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE}
-TODOS = OPERACIONES | TALLER | TRIPULACION
+ADMIN = {Persona.Rol.ADMIN}
+TODOS = ADMIN | OPERACIONES | TALLER | TRIPULACION
 
 
 def persona_de(request):
@@ -23,6 +24,21 @@ def persona_de(request):
     if not usuario or not usuario.is_authenticated:
         return None
     return getattr(usuario, 'persona', None)
+
+
+def es_admin(persona):
+    """El administrador pasa por encima de la separación por área.
+
+    Existe para poder revisar y operar el sistema completo con una sola
+    cuenta. Es deliberadamente amplio: si el día de mañana hace falta un
+    perfil que mire todo pero no toque nada, ese es otro rol, no este.
+    """
+    return persona is not None and persona.rol == Persona.Rol.ADMIN
+
+
+def puede(persona, roles):
+    """¿Este perfil entra, sea por su rol o por ser administrador?"""
+    return es_admin(persona) or (persona is not None and persona.rol in roles)
 
 
 class TienePersona(BasePermission):
@@ -57,7 +73,7 @@ class RolPermitido(TienePersona):
             return True
 
         persona = persona_de(request)
-        if persona.rol in roles:
+        if puede(persona, roles):
             return True
 
         self.message = (
@@ -86,7 +102,7 @@ class EscrituraPorRol(TienePersona):
             return True
 
         persona = persona_de(request)
-        if persona.rol in roles:
+        if puede(persona, roles):
             return True
 
         self.message = (

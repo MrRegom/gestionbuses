@@ -13,6 +13,10 @@ class Persona(models.Model):
         JEFE_OPERACIONES = 'JEFE_OPERACIONES', 'Jefe de Operaciones'
         JEFE_MECANICOS = 'JEFE_MECANICOS', 'Jefe de Mecánicos'
         MONITOREO = 'MONITOREO', 'Sala de Monitoreo'
+        # Perfil transversal: entra a todas las pantallas. No es un
+        # cargo de la empresa, es la cuenta con la que se revisa y se
+        # administra el sistema entero sin turnarse cinco sesiones.
+        ADMIN = 'ADMIN', 'Administrador'
 
     class Tipo(models.TextChoices):
         TITULAR = 'TITULAR', 'Titular'

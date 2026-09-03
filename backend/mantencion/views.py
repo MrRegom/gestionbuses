@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.permissions import (
-    RolPermitido, SoloLecturaMonitoreo, OPERACIONES, TALLER, TODOS, persona_de,
+    RolPermitido, SoloLecturaMonitoreo, OPERACIONES, TALLER, TODOS,
+    persona_de, puede,
 )
 
 from flota.serializers import BusSerializer
@@ -299,7 +300,7 @@ class PlantillaEditarView(APIView):
             status=status.HTTP_200_OK)
 
     def post(self, request):
-        if persona_de(request).rol not in EDITA_PLANTILLA:
+        if not puede(persona_de(request), EDITA_PLANTILLA):
             return Response({'error': _SOLO_OPERACIONES},
                             status=status.HTTP_403_FORBIDDEN)
         try:

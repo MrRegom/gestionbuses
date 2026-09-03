@@ -1,5 +1,9 @@
 asgiref==3.12.1
-Django>=4.2
+# Fijado: Django 5.1 no soporta Python 3.14 —el panel de /admin
+# revienta al copiar el contexto de plantilla— y un rango abierto
+# dejaba que el despliegue instalara una versión distinta de la
+# probada aquí. 5.2 es LTS.
+Django>=5.2.7,<6.0
 django-cors-headers==4.9.0
 djangorestframework==3.18.0
 sqlparse==0.6.0

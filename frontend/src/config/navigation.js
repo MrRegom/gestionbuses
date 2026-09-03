@@ -13,12 +13,14 @@ export const ROLES = {
   CONDUCTOR: 'CONDUCTOR',
   ASISTENTE: 'ASISTENTE',
   MECANICO: 'MECANICO',
+  // Perfil transversal: entra a todo. No filtra por área.
+  ADMIN: 'ADMIN',
 };
 
 const OPERACIONES = [ROLES.JEFE_OPERACIONES, ROLES.MONITOREO];
 const TALLER = [ROLES.JEFE_MECANICOS, ROLES.MECANICO];
 const TRIPULACION = [ROLES.CONDUCTOR, ROLES.ASISTENTE];
-const TODOS = [...OPERACIONES, ...TALLER, ...TRIPULACION];
+const TODOS = [ROLES.ADMIN, ...OPERACIONES, ...TALLER, ...TRIPULACION];
 
 /**
  * Fuente única de verdad de la navegación.
@@ -203,17 +205,24 @@ export function usaBottomNav(rol) {
   return ROLES_MOVILES.includes(rol);
 }
 
+/* El administrador ve el menú entero. Se resuelve aquí y no agregando
+   ROLES.ADMIN a la lista `roles` de cada entrada: así una pantalla
+   nueva le queda visible por omisión, sin que haya que acordarse. */
+function alcanza(rol, item) {
+  return rol === ROLES.ADMIN || item.roles.includes(rol);
+}
+
 /** Grupos visibles para un rol, sin los grupos que quedan vacíos. */
 export function navParaRol(rol) {
   return NAV_GROUPS
-    .map(g => ({ ...g, items: g.items.filter(i => i.roles.includes(rol)) }))
+    .map(g => ({ ...g, items: g.items.filter(i => alcanza(rol, i)) }))
     .filter(g => g.items.length > 0);
 }
 
 /** ¿Este perfil puede entrar a esta ruta? */
 export function puedeAcceder(rol, pathname) {
   const item = NAV_ITEMS.find(i => i.path === pathname);
-  return item ? item.roles.includes(rol) : true;
+  return item ? alcanza(rol, item) : true;
 }
 
 /** Primera ruta disponible para el rol: a dónde mandar tras el login. */
@@ -234,6 +243,7 @@ const TITULO_INICIO = {
   [ROLES.MECANICO]: 'Tablero de Taller',
   [ROLES.CONDUCTOR]: 'Mi jornada',
   [ROLES.ASISTENTE]: 'Mi jornada',
+  [ROLES.ADMIN]: 'Dashboard Operativo',
 };
 
 /** Título de una entrada de navegación para un perfil dado. */

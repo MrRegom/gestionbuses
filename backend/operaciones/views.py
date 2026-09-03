@@ -2,7 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import (
-    EscrituraPorRol, SoloLecturaMonitoreo, OPERACIONES, TODOS, persona_de,
+    EscrituraPorRol, SoloLecturaMonitoreo, OPERACIONES, TODOS,
+    persona_de, puede,
 )
 from flota.serializers import BusSerializer
 
@@ -218,7 +219,7 @@ class ParametrosView(APIView):
 
     def put(self, request):
         persona = persona_de(request)
-        if persona.rol not in OPERACIONES:
+        if not puede(persona, OPERACIONES):
             return Response(
                 {'error': 'Solo Operaciones puede cambiar las reglas del sistema.'},
                 status=status.HTTP_403_FORBIDDEN)

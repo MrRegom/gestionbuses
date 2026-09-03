@@ -26,7 +26,13 @@ CUENTAS = [
     ('operaciones', 'Felipe Contreras',  '11.111.111-1', Persona.Rol.JEFE_OPERACIONES),
     ('taller',      'Sergio Muñoz',      '12.222.222-2', Persona.Rol.JEFE_MECANICOS),
     ('monitoreo',   'Carla Espinoza',    '13.333.333-3', Persona.Rol.MONITOREO),
+    ('admin',       'Administrador SGO', '10.000.000-0', Persona.Rol.ADMIN),
 ]
+
+# La cuenta de administrador además entra al panel de Django (/admin),
+# donde se ven las tablas en crudo. Las demás no lo necesitan: su
+# trabajo ocurre en las pantallas de la aplicación.
+SUPERUSUARIOS = {'admin'}
 
 # Personal que ya existe en la base: se le crea cuenta reutilizando su RUT.
 POR_RUT = [
@@ -41,6 +47,9 @@ def vincular(usuario_nombre, persona):
         defaults={'first_name': persona.nombre.split(' ')[0]},
     )
     user.set_password(CLAVE_DEV)
+    if usuario_nombre in SUPERUSUARIOS:
+        user.is_staff = True
+        user.is_superuser = True
     user.save()
 
     persona.usuario = user
