@@ -23,7 +23,8 @@ Los dos dolores que la empresa nombró como principales:
 1. El tiempo que tarda Operaciones en enterarse de una falla.
 2. Los turnos y la asignación de tripulantes.
 
-El primero está resuelto. El segundo **no está construido**.
+Los dos están resueltos: el checklist digital resuelve el primero, y
+los ciclos de turno el segundo.
 
 ## El vocabulario (esto es lo que más cuesta recuperar)
 
@@ -80,7 +81,10 @@ conoce el proceso de punta a punta. **No inventar alrededor de ellas.**
   qué postura tiene ese bus.
 - **Prioridad de posturas cuando faltan buses:** lunes y martes primero
   minería; después, la salida más próxima.
-- **Turnos:** ciclos **10x4** y **14x7**.
+- **Turnos:** ciclos **10x4** y **14x7**. El flujo es *turnos →
+  disponibilidad → postura → asignación*: el turno dice cuándo alguien
+  puede, la asignación a qué servicio va. Quien descansa no aparece al
+  armar una postura.
 - **GPS:** usan SINACH (marco legal, vía Fenabus) más un sistema interno.
   No saben qué empresa lo provee ni si tiene API.
 - **Hoy la planificación se avisa por WhatsApp.** Eliminarlo es el objetivo.
@@ -181,13 +185,12 @@ Python hay que reiniciarlo** o se depura código viejo.
 
 ## Estado
 
-Construido: planificación, corridas, flota, tripulación, checklist,
-incidentes, taller, dashboard por perfil, auditoría, configuración,
-notificaciones, autenticación por rol.
+Construido: turnos, planificación, corridas, flota, tripulación,
+checklist, incidentes, taller, dashboard por perfil, auditoría,
+configuración, notificaciones, autenticación por rol.
 
-Pendiente: **turnos** (10x4, 14x7 — el módulo que falta y que es la
-mitad del dolor principal), rastreo GPS, planilla de ruta, nómina de
-pasajeros, avisos por WhatsApp.
+Pendiente: rastreo GPS, planilla de ruta, nómina de pasajeros, avisos
+por WhatsApp, y una pantalla para crear cuentas de acceso.
 
 Antes de producción: `DEBUG=True`, `SECRET_KEY` por defecto,
 `ALLOWED_HOSTS=['*']` y las contraseñas del seed. Y PostgreSQL.

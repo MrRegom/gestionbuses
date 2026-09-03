@@ -107,10 +107,11 @@ class AsignarTripulacionView(APIView):
 
 # ── PERSONAL ─────────────────────────────────────────────────
 from .services import (  # noqa: E402
-    PersonalService, CatalogoService, ParametrosService,
+    PersonalService, CatalogoService, ParametrosService, TurnoService,
 )
 from .serializers import (  # noqa: E402
-    CiudadSerializer, ParametrosSerializer,
+    CiudadSerializer, ParametrosSerializer, CicloTurnoSerializer,
+    TurnoSerializer,
 )
 
 
@@ -403,3 +404,99 @@ class CorridaCerrarView(APIView):
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(CorridaSerializer(corrida).data, status=status.HTTP_200_OK)
+
+
+# ── TURNOS ───────────────────────────────────────────────────
+# Primer paso del flujo que describió Operaciones: turnos, luego
+# disponibilidad, y recién ahí la asignación a una postura.
+class CicloTurnoListCreateView(APIView):
+    """Los patrones de trabajo: 10x4, 14x7, los que hagan falta."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request):
+        return Response(
+            CicloTurnoSerializer(TurnoService.get_ciclos(), many=True).data,
+            status=status.HTTP_200_OK)
+
+    def post(self, request):
+        try:
+            ciclo = TurnoService.crear_ciclo(request.data)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CicloTurnoSerializer(ciclo).data,
+                        status=status.HTTP_201_CREATED)
+
+
+class CicloTurnoDetailView(APIView):
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def put(self, request, pk):
+        try:
+            ciclo = TurnoService.actualizar_ciclo(pk, request.data)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CicloTurnoSerializer(ciclo).data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        try:
+            TurnoService.eliminar_ciclo(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TurnoPersonaView(APIView):
+    """El ciclo de una persona y desde qué día le corre."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = OPERACIONES
+
+    def put(self, request, pk):
+        try:
+            turno = TurnoService.asignar(
+                persona_id=pk,
+                ciclo_id=request.data.get('ciclo_id'),
+                inicio=request.data.get('inicio'),
+            )
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if turno is None:
+            return Response({'turno': None}, status=status.HTTP_200_OK)
+        return Response(TurnoSerializer(turno).data, status=status.HTTP_200_OK)
+
+
+class DotacionDelDiaView(APIView):
+    """Quién trabaja y quién descansa. Reemplaza la planilla Excel con
+    la que hoy se contesta esta pregunta."""
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def get(self, request):
+        from datetime import datetime
+
+        fecha = request.query_params.get('fecha')
+        try:
+            fecha = (datetime.strptime(fecha, '%Y-%m-%d').date()
+                     if fecha else None)
+        except ValueError:
+            return Response({'error': 'La fecha se envía como AAAA-MM-DD.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        filas = TurnoService.dotacion_del_dia(fecha)
+        return Response({
+            'trabajan': sum(1 for f in filas if f['trabaja']),
+            'descansan': sum(1 for f in filas if not f['trabaja']),
+            'sin_ciclo': sum(1 for f in filas if f['ciclo'] is None),
+            'personal': [
+                {
+                    'persona': PersonaSerializer(f['persona']).data,
+                    'trabaja': f['trabaja'],
+                    'motivo': f['motivo'],
+                    'ciclo': f['ciclo'],
+                    'dia_del_ciclo': f['dia_del_ciclo'],
+                }
+                for f in filas
+            ],
+        }, status=status.HTTP_200_OK)

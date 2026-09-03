@@ -23,6 +23,13 @@ Crear una plataforma web centralizada (Responsive, estilo "App Nativa" para celu
 
 El sistema soporta los siguientes procesos clave basados en la operación real:
 
+### 0. Turnos y disponibilidad
+- **Ciclos:** La tripulación trabaja en ciclos —**10x4** y **14x7**—: tantos días seguidos trabajando y tantos descansando. Se cargan como datos desde Configuración.
+- **Disponibilidad:** Con el ciclo de una persona y la fecha en que empezó su vuelta, el sistema sabe de cualquier día si está o descansa. Quien descansa no aparece al armar una postura, y el sistema no deja asignarlo.
+- *Hoy esta pregunta —"¿qué conductor está disponible?"— se contesta con una planilla Excel.*
+
+> El flujo que describió Operaciones es **turnos → disponibilidad → postura → asignación → viaje**. El turno dice cuándo alguien puede; la asignación, a qué servicio va. Son dos cosas distintas y el sistema las separa.
+
 ### 1. Planificación de Posturas (Viajes)
 - **Definición:** El Jefe de Operaciones define los viajes necesarios.
 - **Creación:** El Programador crea las "Posturas" (ej. `SGO-CH-001` Santiago → Chillán).

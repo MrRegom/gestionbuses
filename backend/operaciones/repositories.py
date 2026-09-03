@@ -3,7 +3,11 @@ from .models import Persona
 class PersonaRepository:
     @staticmethod
     def get_todas_personas():
-        return Persona.objects.all().order_by('id')
+        # El turno viaja en el listado: sin precargarlo, el serializador
+        # dispara una consulta por persona para leerlo.
+        return (Persona.objects
+                .select_related('turno', 'turno__ciclo')
+                .order_by('id'))
 
     @staticmethod
     def get_conductores():

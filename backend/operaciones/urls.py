@@ -6,6 +6,8 @@ from .views import (
     CiudadListCreateView, CiudadDetailView,
     RutaListView, RutaCreateView, RutaDetailView,
     ParametrosView,
+    CicloTurnoListCreateView, CicloTurnoDetailView, TurnoPersonaView,
+    DotacionDelDiaView,
     PosturaListCreateView, PosturaDetailView,
     AsignarTripulacionView, DesasignarTripulacionView,
     PosturaBusView, PersonalDisponibleView,
@@ -29,6 +31,12 @@ urlpatterns = [
 
     # Reglas del negocio, editables desde Configuración
     path('parametros/', ParametrosView.as_view(), name='parametros'),
+
+    # Turnos: ciclos, el de cada persona, y quién trabaja cada día
+    path('ciclos/', CicloTurnoListCreateView.as_view(), name='ciclo-list-create'),
+    path('ciclos/<int:pk>/', CicloTurnoDetailView.as_view(), name='ciclo-detail'),
+    path('personal/<int:pk>/turno/', TurnoPersonaView.as_view(), name='persona-turno'),
+    path('dotacion-del-dia/', DotacionDelDiaView.as_view(), name='dotacion-dia'),
 
     # Posturas
     path('posturas/', PosturaListCreateView.as_view(), name='postura-list-create'),

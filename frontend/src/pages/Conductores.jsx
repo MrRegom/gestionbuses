@@ -4,7 +4,7 @@ import axios from '../api';
 import { ETIQUETA_PUESTO } from '../config/dominio';
 import DialogoForm, { mensajeError } from '../components/DialogoForm';
 import {
-  Users, Plus, CheckCircle2,
+  Users, Plus, CheckCircle2, Check,
   Search, ArrowRight, MapPin, Clock, Bus as BusIcon,
   X, Calendar, AlertCircle, RefreshCw, Edit, Trash2,
 } from 'lucide-react';
@@ -21,10 +21,109 @@ const avatarTone = id => AVATAR_TONES[id % AVATAR_TONES.length];
 const ESTADO_BADGE = { LISTA: 'ok', EN_CURSO: 'info', COMPLETA: 'ok', ALERTA: 'warn', PROBLEMA: 'danger' };
 const estadoBadge = e => <span className={`badge ${ESTADO_BADGE[e] ?? 'neutral'}`}>{e}</span>;
 
+
+/* ─ Turno de la persona ──────────────────────────────────────
+   Es el primer paso del flujo: el ciclo dice qué días está, y recién
+   sobre eso se arma la programación. Hoy esta pregunta se contesta con
+   una planilla Excel. */
+function TurnoPersona({ persona, onCambio }) {
+  const [ciclos, setCiclos] = useState([]);
+  const [form, setForm] = useState({ ciclo_id: '', inicio: '' });
+  const [guardando, setGuardando] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const turno = persona.turno;
+
+  useEffect(() => {
+    axios.get('/api/operaciones/ciclos/')
+      .then(r => setCiclos(r.data.filter(c => c.activo)))
+      .catch(() => setCiclos([]));
+  }, []);
+
+  useEffect(() => {
+    setForm({
+      ciclo_id: turno?.ciclo?.id ?? '',
+      inicio: turno?.inicio ?? '',
+    });
+    setMsg(null);
+  }, [turno?.ciclo?.id, turno?.inicio]);
+
+  const guardar = async () => {
+    setGuardando(true);
+    setMsg(null);
+    try {
+      await axios.put(`/api/operaciones/personal/${persona.id}/turno/`, {
+        ciclo_id: form.ciclo_id || null,
+        inicio: form.inicio || null,
+      });
+      setMsg({ type: 'ok', text: 'Turno guardado.' });
+      await onCambio();
+    } catch (err) {
+      setMsg({ type: 'err', text: mensajeError(err, 'No se pudo guardar el turno.') });
+    }
+    setGuardando(false);
+  };
+
+  const cambiado = String(form.ciclo_id ?? '') !== String(turno?.ciclo?.id ?? '')
+    || (form.inicio ?? '') !== (turno?.inicio ?? '');
+
+  return (
+    <div className="mb-4">
+      <div className="section-label">Turno</div>
+
+      {!turno && (
+        <div className="info-box text-muted mb-3">
+          Sin ciclo asignado. Mientras no lo tenga, el sistema la considera
+          disponible todos los días.
+        </div>
+      )}
+
+      <div className="grid-2 gap-3">
+        <div className="form-group">
+          <label className="form-label" htmlFor="turno-ciclo">Ciclo</label>
+          <select id="turno-ciclo" className="form-input form-select"
+                  value={form.ciclo_id}
+                  onChange={e => setForm({ ...form, ciclo_id: e.target.value })}>
+            <option value="">Sin ciclo</option>
+            {ciclos.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.nombre} · {c.dias_trabajo}+{c.dias_descanso}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="turno-inicio">
+            Primer día de trabajo
+          </label>
+          <input id="turno-inicio" type="date" className="form-input"
+                 value={form.inicio}
+                 disabled={!form.ciclo_id}
+                 onChange={e => setForm({ ...form, inicio: e.target.value })} />
+        </div>
+      </div>
+
+      {msg && (
+        <div className={`notice ${msg.type === 'ok' ? 'ok' : 'danger'} mb-3`}>
+          <div className="notice-content">{msg.text}</div>
+        </div>
+      )}
+
+      <button className="btn btn-secondary btn-sm w-full"
+              onClick={guardar}
+              disabled={guardando || !cambiado
+                        || (Boolean(form.ciclo_id) && !form.inicio)}>
+        {guardando ? <><span className="spinner" /> Guardando…</>
+                   : <><Check size={14} /> Guardar turno</>}
+      </button>
+    </div>
+  );
+}
+
 /* ─ Ficha lateral ────────────────────────────────────────── */
 const VIAJAN = ['CONDUCTOR', 'ASISTENTE'];
 
-function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
+function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar, onCambio }) {
   const [tab, setTab] = useState('info');
   // El listado incluye a todo el personal, porque es el único sitio
   // donde se da de alta a un mecánico. Pero a un mecánico no se le
@@ -127,6 +226,10 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                 ))}
               </div>
             </div>
+
+            {esTripulacion && (
+              <TurnoPersona persona={persona} onCambio={onCambio} />
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -368,6 +471,15 @@ export default function Conductores() {
       alert(mensajeError(err, 'No se pudo eliminar la persona.'));
     }
   };
+
+  /* Relee la persona seleccionada. La ficha muestra su turno vigente,
+     así que tras guardarlo hay que traerla de nuevo o queda mostrando
+     el ciclo anterior. */
+  const refrescarSeleccion = useCallback(async () => {
+    const { data } = await axios.get('/api/operaciones/tripulacion/');
+    setPersonas(data);
+    setSelected(prev => (prev ? data.find(p => p.id === prev.id) ?? prev : prev));
+  }, []);
 
   /* Sube a la persona al primer puesto que le calce en ese servicio.
      El puesto no es el cargo: un conductor va de jefe de máquina o de
@@ -647,6 +759,7 @@ export default function Conductores() {
             onClose={() => setSelected(null)}
             onAsignar={handleAsignar}
             onDesasignar={handleDesasignar}
+            onCambio={refrescarSeleccion}
           />
         </>,
         document.body,

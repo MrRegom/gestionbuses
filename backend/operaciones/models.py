@@ -40,13 +40,18 @@ class Persona(models.Model):
     def __str__(self):
         return f"{self.nombre} ({self.rut})"
 
-# Composición fija de la tripulación de un servicio, confirmada con
-# Operaciones: dos conductores que se turnan al volante y un asistente.
-# Vive aquí, y no repartida por el código, para que cambiarla sea tocar
-# una sola línea.
-# Valores iniciales. Los vigentes los manda `Parametros`, que se edita
-# desde la pantalla de Configuración: estas cifras solo sirven para
-# arrancar una base vacía.
+# Por qué son dos conductores: Operaciones confirmó que el máximo son
+# cinco horas continuas al volante, y los viajes duran más —el de Arica,
+# treinta y dos—. A mitad de camino tienen que relevarse. No van dos por
+# comodidad: con uno solo el servicio no se puede hacer.
+#
+# El sistema no lleva la cuenta de esas horas: Operaciones decidió que
+# los conductores no marcan cuándo toman y entregan el volante, así que
+# un contador aquí sería un número que nadie alimenta. Lo que sí se hace
+# cumplir es la dotación.
+#
+# Estos son los valores iniciales; los vigentes los manda `Parametros`,
+# que se edita desde Configuración.
 DOTACION_INICIAL = {'CONDUCTOR': 2, 'ASISTENTE': 1}
 
 # Qué cargo puede ocupar cada puesto del viaje. Un asistente no va al
@@ -148,15 +153,102 @@ def dotacion_requerida():
     """
     return Parametros.actual().dotacion
 
-# Por qué son dos conductores: Operaciones confirmó que el máximo son
-# cinco horas continuas al volante, y los viajes duran más —el de Arica,
-# treinta y dos—. A mitad de camino tienen que relevarse. No van dos por
-# comodidad: con uno solo el servicio no se puede hacer.
-#
-# El sistema no lleva la cuenta de esas horas. Se evaluó y Operaciones
-# decidió que los conductores no van a marcar cuándo toman y entregan el
-# volante, así que un contador aquí sería un número que nadie alimenta.
-# Lo que sí se hace cumplir es la dotación de arriba.
+
+class CicloTurno(models.Model):
+    """Un patrón de trabajo: tantos días trabajando, tantos descansando.
+
+    Operaciones nombró dos, 10x4 y 14x7, pero se cargan como datos y no
+    como código: un ciclo nuevo se agrega desde Configuración.
+    """
+
+    nombre = models.CharField(max_length=20, unique=True)
+    dias_trabajo = models.PositiveSmallIntegerField()
+    dias_descanso = models.PositiveSmallIntegerField()
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'Ciclo de turno'
+        verbose_name_plural = 'Ciclos de turno'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def largo(self):
+        return self.dias_trabajo + self.dias_descanso
+
+
+class Turno(models.Model):
+    """El ciclo vigente de una persona y desde cuándo corre.
+
+    Con el ciclo y la fecha en que empezó basta para saber, de cualquier
+    día, si esa persona trabaja o descansa. No hace falta guardar una
+    fila por día: el patrón se repite.
+
+    Es uno por persona —el vigente— y no un historial. Cambiar el ciclo
+    reescribe la disponibilidad pasada, cosa que no importa porque lo
+    que se planifica es hacia adelante. Si algún día hace falta el
+    historial, es otro modelo, no un campo más en este.
+    """
+
+    persona = models.OneToOneField(
+        Persona, on_delete=models.CASCADE, related_name='turno'
+    )
+    ciclo = models.ForeignKey(
+        CicloTurno, on_delete=models.PROTECT, related_name='turnos'
+    )
+    inicio = models.DateField(
+        help_text='Primer día de trabajo del ciclo vigente'
+    )
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Turno'
+        verbose_name_plural = 'Turnos'
+        ordering = ['persona__nombre']
+
+    def __str__(self):
+        return f'{self.persona.nombre}: {self.ciclo.nombre} desde {self.inicio}'
+
+    def dia_del_ciclo(self, fecha):
+        """En qué día del ciclo cae esa fecha. El 1 es el primero de trabajo."""
+        # El módulo de Python nunca da negativo con divisor positivo, así
+        # que una fecha anterior al inicio también cae en algún día del
+        # patrón, que es lo correcto: el ciclo se repite hacia atrás.
+        return ((fecha - self.inicio).days % self.ciclo.largo) + 1
+
+    def trabaja(self, fecha):
+        return self.dia_del_ciclo(fecha) <= self.ciclo.dias_trabajo
+
+    def vuelve(self, fecha):
+        """Cuándo vuelve a trabajar, si ese día está descansando."""
+        from datetime import timedelta
+
+        if self.trabaja(fecha):
+            return None
+        faltan = self.ciclo.largo - self.dia_del_ciclo(fecha) + 1
+        return fecha + timedelta(days=faltan)
+
+
+def disponible_por_turno(persona, fecha):
+    """(trabaja, motivo). Sin turno asignado se asume disponible.
+
+    Nadie queda bloqueado por un dato que Operaciones todavía no cargó:
+    mientras una persona no tenga ciclo, el sistema no se mete.
+    """
+    turno = getattr(persona, 'turno', None)
+    if turno is None:
+        return True, None
+
+    if turno.trabaja(fecha):
+        return True, None
+
+    vuelve = turno.vuelve(fecha)
+    return False, (f'En descanso ({turno.ciclo.nombre}), '
+                   f'vuelve el {vuelve.strftime("%d-%m")}')
+
+
 class Ciudad(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
 

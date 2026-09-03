@@ -6,6 +6,7 @@ import { hace } from '../utils/formato';
 import {
   SlidersHorizontal, Route, ClipboardList, Plus, Edit, Trash2,
   AlertCircle, RefreshCw, Check, Save, Eye, EyeOff, MapPin, Info,
+  CalendarRange,
 } from 'lucide-react';
 
 /**
@@ -19,6 +20,7 @@ import {
 const TABS = [
   { id: 'parametros', label: 'Reglas', Icon: SlidersHorizontal },
   { id: 'rutas', label: 'Rutas y ciudades', Icon: Route },
+  { id: 'turnos', label: 'Turnos', Icon: CalendarRange },
   { id: 'checklist', label: 'Checklist', Icon: ClipboardList },
 ];
 
@@ -53,6 +55,7 @@ export default function Configuracion() {
 
       {tab === 'parametros' && <PanelReglas />}
       {tab === 'rutas' && <PanelRutas />}
+      {tab === 'turnos' && <PanelTurnos />}
       {tab === 'checklist' && <PanelChecklist />}
     </>
   );
@@ -178,6 +181,182 @@ function Campo({ label, id, valor, onChange, paso = '1', min = 0 }) {
         value={valor}
         onChange={e => onChange(e.target.value)}
       />
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   TURNOS · los ciclos de trabajo
+   ------------------------------------------------------------
+   Un ciclo dice cuántos días seguidos se trabaja y cuántos se
+   descansa. Con eso y la fecha en que alguien empezó su vuelta,
+   el sistema sabe de cualquier día si esa persona está.
+   ═══════════════════════════════════════════════════════════ */
+const CICLO_VACIO = { nombre: '', dias_trabajo: 10, dias_descanso: 4, activo: true };
+
+function PanelTurnos() {
+  const [ciclos, setCiclos] = useState(null);
+  const [error, setError] = useState(null);
+  const [dialogo, setDialogo] = useState(null);   // null | 'crear' | {id}
+  const [form, setForm] = useState(CICLO_VACIO);
+  const [guardando, setGuardando] = useState(false);
+  const [dlgError, setDlgError] = useState(null);
+
+  const cargar = useCallback(async () => {
+    setError(null);
+    try {
+      const { data } = await axios.get('/api/operaciones/ciclos/');
+      setCiclos(data);
+    } catch {
+      setError('No se pudieron cargar los ciclos.');
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const guardar = async () => {
+    setGuardando(true);
+    setDlgError(null);
+    try {
+      if (dialogo === 'crear') await axios.post('/api/operaciones/ciclos/', form);
+      else await axios.put(`/api/operaciones/ciclos/${dialogo.id}/`, form);
+      setDialogo(null);
+      await cargar();
+    } catch (err) {
+      setDlgError(mensajeError(err, 'No se pudo guardar el ciclo.'));
+    }
+    setGuardando(false);
+  };
+
+  const eliminar = async ciclo => {
+    if (!window.confirm(`¿Eliminar el ciclo ${ciclo.nombre}?`)) return;
+    try {
+      await axios.delete(`/api/operaciones/ciclos/${ciclo.id}/`);
+      await cargar();
+    } catch (err) {
+      alert(mensajeError(err, 'No se pudo eliminar el ciclo.'));
+    }
+  };
+
+  if (error) return <Fallo texto={error} onReintentar={cargar} />;
+  if (!ciclos) return <div className="skeleton" style={{ height: 260 }} />;
+
+  return (
+    <div className="stack">
+      <div className="notice info">
+        <span className="notice-icon"><Info size={16} /></span>
+        <div className="notice-content">
+          <div className="notice-title">Los ciclos definen quién está disponible</div>
+          <div className="notice-desc">
+            Un 10x4 son diez días de trabajo y cuatro de descanso. El turno
+            de cada persona —qué ciclo tiene y desde qué día le corre— se
+            asigna en su ficha, en Conductores. Quien está de descanso no
+            aparece al armar una postura.
+          </div>
+        </div>
+        <button className="btn btn-primary btn-sm ml-auto"
+                onClick={() => { setForm(CICLO_VACIO); setDlgError(null); setDialogo('crear'); }}>
+          <Plus size={14} /> Nuevo ciclo
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">Ciclos de turno</span>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          {ciclos.length === 0 ? (
+            <Vacio icono={CalendarRange} titulo="Sin ciclos"
+                   sub="Agrega los que usa la empresa: 10x4, 14x7…" />
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ciclo</th>
+                    <th>Trabajo</th>
+                    <th>Descanso</th>
+                    <th>Vuelta completa</th>
+                    <th>Personas</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ciclos.map(c => (
+                    <tr key={c.id} style={{ opacity: c.activo ? 1 : 0.55 }}>
+                      <td data-label="Ciclo">
+                        <span className="fw-600">{c.nombre}</span>
+                        {!c.activo && <span className="tag ml-auto">Inactivo</span>}
+                      </td>
+                      <td data-label="Trabajo">{c.dias_trabajo} días</td>
+                      <td data-label="Descanso">{c.dias_descanso} días</td>
+                      <td data-label="Vuelta completa">
+                        <span className="mono">{c.largo} días</span>
+                      </td>
+                      <td data-label="Personas">
+                        <span className={`badge ${c.en_uso ? 'accent' : 'neutral'}`}>
+                          {c.en_uso}
+                        </span>
+                      </td>
+                      <td data-label="Acción">
+                        <div className="flex gap-2 justify-center">
+                          <button className="btn-icon" title="Editar"
+                                  aria-label={`Editar ${c.nombre}`}
+                                  onClick={() => {
+                                    setForm({ ...c });
+                                    setDlgError(null);
+                                    setDialogo({ id: c.id });
+                                  }}>
+                            <Edit size={15} />
+                          </button>
+                          <button className="btn-icon" title="Eliminar"
+                                  aria-label={`Eliminar ${c.nombre}`}
+                                  style={{ color: 'var(--danger)' }}
+                                  onClick={() => eliminar(c)}>
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <DialogoForm
+        abierto={Boolean(dialogo)}
+        titulo={dialogo === 'crear' ? 'Nuevo ciclo' : 'Editar ciclo'}
+        onCerrar={() => setDialogo(null)}
+        onGuardar={guardar}
+        guardando={guardando}
+        error={dlgError}
+        disabled={!form.nombre?.trim() || !form.dias_trabajo}
+      >
+        <div className="form-group">
+          <label className="form-label" htmlFor="ciclo-nom">Nombre</label>
+          <input id="ciclo-nom" type="text" className="form-input"
+                 placeholder="10x4" value={form.nombre ?? ''}
+                 onChange={e => setForm({ ...form, nombre: e.target.value })} />
+        </div>
+        <div className="grid-2">
+          <Campo label="Días de trabajo" id="ciclo-trab" min={1}
+                 valor={form.dias_trabajo}
+                 onChange={v => setForm({ ...form, dias_trabajo: v })} />
+          <Campo label="Días de descanso" id="ciclo-desc" min={0}
+                 valor={form.dias_descanso}
+                 onChange={v => setForm({ ...form, dias_descanso: v })} />
+        </div>
+        <div className="info-box">
+          La vuelta completa dura{' '}
+          <strong>
+            {Number(form.dias_trabajo || 0) + Number(form.dias_descanso || 0)}
+          </strong>{' '}días y se repite.
+        </div>
+      </DialogoForm>
     </div>
   );
 }

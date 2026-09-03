@@ -5,9 +5,9 @@ from django.utils import timezone
 
 from .repositories import PersonaRepository
 from .models import (
-    Ciudad, Corrida, MovimientoCorrida, Parametros, Persona, Postura,
-    AsignacionTripulacion, CARGO_DEL_PUESTO,
-    dotacion_requerida, puestos_de,
+    Ciudad, CicloTurno, Corrida, MovimientoCorrida, Parametros, Persona,
+    Postura, Turno, AsignacionTripulacion, CARGO_DEL_PUESTO,
+    disponible_por_turno, dotacion_requerida, puestos_de,
 )
 
 class TripulacionService:
@@ -151,6 +151,13 @@ class PlanificacionService:
                 f'y no puede ir como {puesto.lower()}.'
             )
 
+        # Quien está de descanso no entra a la programación. Es el
+        # primer paso del flujo que describió Operaciones: turnos,
+        # disponibilidad, y recién ahí la asignación.
+        trabaja, motivo = disponible_por_turno(persona, postura.fecha)
+        if not trabaja:
+            raise ValueError(f'{persona.nombre}: {motivo.lower()}.')
+
         # Nadie puede estar en dos servicios que se pisan en el horario.
         desde, hasta = _fechas_candidatas(postura)
         otras = (
@@ -270,9 +277,11 @@ class PlanificacionService:
         if not postura:
             raise ValueError("Postura no encontrada")
 
-        tripulacion = Persona.objects.filter(
-            rol__in=[Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE]
-        ).order_by('nombre')
+        tripulacion = (Persona.objects
+                       .filter(rol__in=[Persona.Rol.CONDUCTOR,
+                                        Persona.Rol.ASISTENTE])
+                       .select_related('turno', 'turno__ciclo')
+                       .order_by('nombre'))
 
         desde, hasta = _fechas_candidatas(postura)
         ocupados = {
@@ -291,8 +300,12 @@ class PlanificacionService:
 
         resultado = []
         for p in tripulacion:
+            trabaja, motivo_turno = disponible_por_turno(p, postura.fecha)
+
             if p.id in ya_en_postura:
                 motivo = 'Ya asignado a esta postura'
+            elif not trabaja:
+                motivo = motivo_turno
             elif p.id in ocupados:
                 motivo = f'Viaja en {ocupados[p.id]} a esa hora'
             else:
@@ -357,8 +370,12 @@ class PlanificacionService:
 
         resultado = []
         for postura in candidatas:
+            trabaja, motivo_turno = disponible_por_turno(persona, postura.fecha)
+
             if postura.id in propias:
                 motivo = 'Ya va en este servicio'
+            elif not trabaja:
+                motivo = motivo_turno
             elif not any(postura.faltantes().get(p, 0) for p in mis_puestos):
                 cargo = ('conductores' if persona.rol == Persona.Rol.CONDUCTOR
                          else 'asistentes')
@@ -426,6 +443,141 @@ class PersonalService:
             )
 
         PersonaRepository.delete_persona(persona)
+
+
+class TurnoService:
+    """Ciclos de trabajo y quién está disponible cada día.
+
+    Es el primer paso del flujo que describió Operaciones —turnos,
+    disponibilidad, postura, asignación— y hasta ahora faltaba entero:
+    el sistema asumía que cualquiera podía tomar cualquier servicio
+    mientras no se le pisara el horario.
+    """
+
+    # ── Ciclos ──
+    @staticmethod
+    def get_ciclos():
+        return CicloTurno.objects.all()
+
+    @staticmethod
+    def crear_ciclo(data: dict):
+        nombre = (data.get('nombre') or '').strip()
+        if not nombre:
+            raise ValueError('El ciclo necesita un nombre, por ejemplo 10x4.')
+        if CicloTurno.objects.filter(nombre__iexact=nombre).exists():
+            raise ValueError(f'Ya existe un ciclo llamado "{nombre}".')
+
+        trabajo = int(data.get('dias_trabajo') or 0)
+        descanso = int(data.get('dias_descanso') or 0)
+        if trabajo < 1:
+            raise ValueError('Un ciclo necesita al menos un día de trabajo.')
+        if descanso < 0:
+            raise ValueError('Los días de descanso no pueden ser negativos.')
+
+        return CicloTurno.objects.create(
+            nombre=nombre, dias_trabajo=trabajo, dias_descanso=descanso,
+            activo=bool(data.get('activo', True)),
+        )
+
+    @staticmethod
+    def actualizar_ciclo(ciclo_id: int, data: dict):
+        ciclo = CicloTurno.objects.filter(id=ciclo_id).first()
+        if not ciclo:
+            raise ValueError('Ciclo no encontrado')
+
+        if 'nombre' in data:
+            nombre = (data['nombre'] or '').strip()
+            if not nombre:
+                raise ValueError('El ciclo necesita un nombre.')
+            if (CicloTurno.objects.filter(nombre__iexact=nombre)
+                    .exclude(id=ciclo_id).exists()):
+                raise ValueError(f'Ya existe un ciclo llamado "{nombre}".')
+            ciclo.nombre = nombre
+
+        if 'dias_trabajo' in data:
+            if int(data['dias_trabajo'] or 0) < 1:
+                raise ValueError('Un ciclo necesita al menos un día de trabajo.')
+            ciclo.dias_trabajo = int(data['dias_trabajo'])
+
+        if 'dias_descanso' in data:
+            if int(data['dias_descanso'] or 0) < 0:
+                raise ValueError('Los días de descanso no pueden ser negativos.')
+            ciclo.dias_descanso = int(data['dias_descanso'])
+
+        if 'activo' in data:
+            ciclo.activo = bool(data['activo'])
+
+        ciclo.save()
+        return ciclo
+
+    @staticmethod
+    def eliminar_ciclo(ciclo_id: int):
+        ciclo = CicloTurno.objects.filter(id=ciclo_id).first()
+        if not ciclo:
+            raise ValueError('Ciclo no encontrado')
+
+        usados = ciclo.turnos.count()
+        if usados:
+            raise ValueError(
+                f'{ciclo.nombre} lo usan {usados} persona(s). Cámbiales el '
+                'ciclo antes de eliminarlo, o desactívalo.'
+            )
+        ciclo.delete()
+
+    # ── Turno de una persona ──
+    @staticmethod
+    def asignar(persona_id: int, ciclo_id, inicio):
+        """Le pone ciclo a una persona, o se lo quita si `ciclo_id` es nulo."""
+        from .repositories import PersonaRepository
+
+        persona = PersonaRepository.get_persona_by_id(persona_id)
+        if not persona:
+            raise ValueError('Persona no encontrada')
+
+        if not ciclo_id:
+            Turno.objects.filter(persona=persona).delete()
+            return None
+
+        ciclo = CicloTurno.objects.filter(id=ciclo_id).first()
+        if not ciclo:
+            raise ValueError('Ciclo no encontrado')
+        if not ciclo.activo:
+            raise ValueError(f'El ciclo {ciclo.nombre} está desactivado.')
+        if not inicio:
+            raise ValueError('Indica desde qué día corre el ciclo.')
+
+        turno, _ = Turno.objects.update_or_create(
+            persona=persona, defaults={'ciclo': ciclo, 'inicio': inicio},
+        )
+        return turno
+
+    # ── Consulta ──
+    @staticmethod
+    def dotacion_del_dia(fecha=None):
+        """Quién trabaja y quién descansa ese día, por cargo.
+
+        Responde la pregunta que hoy se contesta con una planilla Excel:
+        de qué gente dispone Operaciones para programar.
+        """
+        fecha = fecha or timezone.localdate()
+
+        gente = (Persona.objects
+                 .filter(rol__in=[Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE])
+                 .select_related('turno', 'turno__ciclo')
+                 .order_by('nombre'))
+
+        filas = []
+        for p in gente:
+            trabaja, motivo = disponible_por_turno(p, fecha)
+            turno = getattr(p, 'turno', None)
+            filas.append({
+                'persona': p,
+                'trabaja': trabaja,
+                'motivo': motivo,
+                'ciclo': turno.ciclo.nombre if turno else None,
+                'dia_del_ciclo': turno.dia_del_ciclo(fecha) if turno else None,
+            })
+        return filas
 
 
 class CatalogoService:
