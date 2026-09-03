@@ -261,17 +261,20 @@ def asignar_dotacion(rng, posturas):
 
         for postura in del_dia:
             faltan = postura.faltantes()
-            for rol, pool in ((Persona.Rol.CONDUCTOR, pool_c),
-                              (Persona.Rol.ASISTENTE, pool_a)):
-                puestos = 0
-                while puestos < faltan.get(rol, 0) and pool:
+            # Un puesto por vez, en el orden de la planilla: jefe de
+            # máquina, segundo conductor y auxiliar.
+            for puesto, pool in (('JEFE_MAQUINA', pool_c),
+                                 ('SEGUNDO_CONDUCTOR', pool_c),
+                                 ('AUXILIAR', pool_a)):
+                cubiertos = 0
+                while cubiertos < faltan.get(puesto, 0) and pool:
                     persona = pool.pop()
                     try:
                         PlanificacionService.asignar_tripulacion(
-                            postura.id, persona.id, rol)
+                            postura.id, persona.id, puesto)
                     except ValueError:
                         continue
-                    puestos += 1
+                    cubiertos += 1
                     asignadas += 1
 
     return asignadas

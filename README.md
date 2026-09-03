@@ -26,7 +26,9 @@ El sistema soporta los siguientes procesos clave basados en la operación real:
 ### 1. Planificación de Posturas (Viajes)
 - **Definición:** El Jefe de Operaciones define los viajes necesarios.
 - **Creación:** El Programador crea las "Posturas" (ej. `SGO-CH-001` Santiago → Chillán).
-- **Asignación de Recursos:** A la postura se le asigna un **Bus** y una **Tripulación** (normalmente 2 Conductores y 1 Asistente).
+- **Asignación de Recursos:** A la postura se le asigna un **Bus** y una **Tripulación** de tres puestos, como en la planilla de Operaciones: **jefe de máquina**, **2° conductor** y **auxiliar**.
+
+> El puesto no es el cargo. Una persona *es* conductora —eso vive en su ficha— y en un viaje concreto *va* como jefe de máquina o como segundo; el mismo conductor puede ir de jefe hoy y de segundo mañana. El jefe de máquina además tiene función propia: es quien revisa los papeles del viaje antes de entregarlos a finanzas. Jefe hay uno y solo uno, así que configurar "3 conductores" da un jefe y dos segundos, nunca dos jefes.
 - *Digitalización:* El sistema consolida todo en un "Dashboard de Planificación".
 
 ### 2. Ejecución del Viaje

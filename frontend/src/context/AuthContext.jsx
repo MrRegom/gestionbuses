@@ -73,7 +73,9 @@ export function useAuth() {
 /* Respaldos por si el backend es anterior a que las reglas viajaran en
    la sesión. No son la fuente de verdad: esa es `models.py`. */
 const REGLAS_POR_DEFECTO = {
-  dotacion_requerida: { CONDUCTOR: 2, ASISTENTE: 1 },
+  dotacion_requerida: {
+    JEFE_MAQUINA: 1, SEGUNDO_CONDUCTOR: 1, AUXILIAR: 1,
+  },
 };
 
 /**

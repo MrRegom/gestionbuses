@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../api';
+import { ETIQUETA_PUESTO } from '../config/dominio';
 import DialogoForm, { mensajeError } from '../components/DialogoForm';
 import {
   Users, Plus, CheckCircle2,
@@ -62,7 +63,9 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
     setSaving(true);
     setMsg(null);
     try {
-      await onAsignar(selPostura, persona.id);
+      const elegida = disponibles.find(
+        o => o.postura.id === parseInt(selPostura, 10));
+      await onAsignar(selPostura, persona.id, elegida?.puesto);
       setMsg({ type: 'ok', text: 'Postura asignada correctamente.' });
       setSelPostura('');
       setTab('info');
@@ -161,7 +164,9 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                           <Clock size={12} /> {p.hora_salida?.substring(0, 5)} · {p.fecha}
                         </span>
                         <span className="flex items-center gap-2">
-                          <span className="badge neutral">{asig?.rol_en_viaje}</span>
+                          <span className="badge neutral">
+                            {ETIQUETA_PUESTO[asig?.rol_en_viaje] ?? asig?.rol_en_viaje}
+                          </span>
                           <button
                             className="btn-icon btn-sm"
                             onClick={() => onDesasignar(p.id, asig?.id)}
@@ -197,10 +202,11 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                 onChange={e => setSelPostura(e.target.value)}
               >
                 <option value="">Seleccione una postura…</option>
-                {disponibles.map(({ postura: p }) => (
+                {disponibles.map(({ postura: p, puesto }) => (
                   <option key={p.id} value={p.id}>
                     {p.codigo} · {p.ruta?.origen?.nombre} → {p.ruta?.destino?.nombre}
                     {' · '}{p.fecha} {p.hora_salida?.substring(0, 5)}
+                    {puesto ? ` · ${ETIQUETA_PUESTO[puesto]}` : ''}
                   </option>
                 ))}
               </select>
@@ -363,15 +369,13 @@ export default function Conductores() {
     }
   };
 
-  /* Sube a la persona a una postura con su propio cargo.
-     Antes iba fijo 'CONDUCTOR': asignar a un asistente desde esta
-     pantalla fallaba siempre, porque el servidor exige que el puesto
-     en el viaje coincida con el cargo de la persona. */
-  const handleAsignar = async (posturaId, personaId) => {
-    const persona = personas.find(p => p.id === personaId);
+  /* Sube a la persona al primer puesto que le calce en ese servicio.
+     El puesto no es el cargo: un conductor va de jefe de máquina o de
+     segundo según cuál esté libre. Es el mismo orden de la planilla. */
+  const handleAsignar = async (posturaId, personaId, puesto) => {
     await axios.post(`/api/operaciones/posturas/${posturaId}/asignar/`, {
       persona_id: personaId,
-      rol_en_viaje: persona?.rol,
+      rol_en_viaje: puesto,
     });
     await fetchAll();
     const r = await axios.get('/api/operaciones/tripulacion/');

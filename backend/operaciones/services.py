@@ -6,8 +6,8 @@ from django.utils import timezone
 from .repositories import PersonaRepository
 from .models import (
     Ciudad, Corrida, MovimientoCorrida, Parametros, Persona, Postura,
-    AsignacionTripulacion,
-    dotacion_requerida,
+    AsignacionTripulacion, CARGO_DEL_PUESTO,
+    dotacion_requerida, puestos_de,
 )
 
 class TripulacionService:
@@ -98,9 +98,22 @@ class PlanificacionService:
     @staticmethod
     def delete_postura(postura_id: int):
         from .repositories import PosturaRepository
+
         postura = PosturaRepository.get_postura_by_id(postura_id)
         if not postura:
             raise ValueError("Postura no encontrada")
+
+        # Un servicio que originó una corrida no se borra: con él se iría
+        # el registro de por qué se corrió la fila ese día. La base lo
+        # impide de todos modos —la relación es PROTECT—, pero sin este
+        # aviso el error que llega es opaco.
+        if postura.corridas_originadas.exists():
+            raise ValueError(
+                f'La postura {postura.codigo} originó una corrida y no se '
+                'puede eliminar: se perdería el registro de por qué se '
+                'corrió la fila.'
+            )
+
         PosturaRepository.delete_postura(postura)
 
     @staticmethod
@@ -122,20 +135,20 @@ class PlanificacionService:
                 f"{persona.nombre} es {persona.get_rol_display()} y no puede ir como tripulación."
             )
 
-        # El rol se valida antes de usarlo: si el cliente no lo manda,
-        # `rol.lower()` explotaba con un 500 en vez de decir qué falta.
-        if rol not in Persona.Rol.values:
+        # El puesto se valida antes de usarlo: sin esto, un valor que
+        # no viene explotaba con un 500 en vez de decir qué falta.
+        if rol not in AsignacionTripulacion.Puesto.values:
             raise ValueError(
-                'Indica con qué puesto viaja: conductor o asistente.'
+                'Indica el puesto: jefe de máquina, 2° conductor o auxiliar.'
             )
 
-        # El puesto en el viaje tiene que corresponder al cargo: la
-        # dotación son dos conductores y un asistente, no tres personas
-        # intercambiables. Un asistente no va al volante.
-        if persona.rol != rol:
+        # El puesto exige un cargo: un asistente no va al volante y un
+        # conductor no hace de auxiliar.
+        if CARGO_DEL_PUESTO[rol] != persona.rol:
+            puesto = AsignacionTripulacion.Puesto(rol).label
             raise ValueError(
-                f"{persona.nombre} es {persona.get_rol_display()} "
-                f"y no puede ir como {rol.lower()}."
+                f'{persona.nombre} es {persona.get_rol_display()} '
+                f'y no puede ir como {puesto.lower()}.'
             )
 
         # Nadie puede estar en dos servicios que se pisan en el horario.
@@ -162,10 +175,9 @@ class PlanificacionService:
 
         ya_asignados = postura.tripulacion.filter(rol_en_viaje=rol).exclude(persona=persona).count()
         if ya_asignados >= cupo:
-            singular = 'conductor' if rol == Persona.Rol.CONDUCTOR else 'asistente'
-            cubierto = (
-                f'sus {cupo} {singular}es' if cupo > 1 else f'su {singular}'
-            )
+            puesto = AsignacionTripulacion.Puesto(rol).label
+            cubierto = (f'sus {cupo} puestos de {puesto.lower()}' if cupo > 1
+                        else f'su {puesto.lower()}')
             raise ValueError(
                 f'La postura {postura.codigo} ya tiene {cubierto}.'
             )
@@ -318,6 +330,11 @@ class PlanificacionService:
         if persona.rol not in (Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE):
             return []
 
+        # Un conductor puede ir de jefe de máquina o de segundo; un
+        # asistente solo de auxiliar. La postura le sirve si le falta
+        # cualquiera de los puestos que su cargo puede ocupar.
+        mis_puestos = puestos_de(persona.rol)
+
         # Lo ya ocurrido no se planifica. Sin este corte la lista arrastra
         # todos los servicios históricos y no se encuentra el de mañana.
         hoy = timezone.localdate()
@@ -342,8 +359,9 @@ class PlanificacionService:
         for postura in candidatas:
             if postura.id in propias:
                 motivo = 'Ya va en este servicio'
-            elif not postura.faltantes().get(persona.rol, 0):
-                cargo = 'conductores' if persona.rol == Persona.Rol.CONDUCTOR                     else 'asistentes'
+            elif not any(postura.faltantes().get(p, 0) for p in mis_puestos):
+                cargo = ('conductores' if persona.rol == Persona.Rol.CONDUCTOR
+                         else 'asistentes')
                 motivo = f'Ya tiene todos sus {cargo}'
             else:
                 choque = next(
@@ -354,10 +372,16 @@ class PlanificacionService:
                 motivo = (f'Se solapa con {choque.codigo}, donde ya viaja'
                           if choque else None)
 
+            # Qué puesto ocuparía. Se sigue el orden de la planilla:
+            # primero el jefe de máquina, después el segundo.
+            faltan = postura.faltantes()
+            puesto = next((p for p in mis_puestos if faltan.get(p, 0)), None)
+
             resultado.append({
                 'postura': postura,
                 'disponible': motivo is None,
                 'motivo': motivo,
+                'puesto': puesto,
             })
 
         return resultado

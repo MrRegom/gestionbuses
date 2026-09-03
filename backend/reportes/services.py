@@ -71,11 +71,12 @@ def _posturas_desde_ahora(queryset, limite=6):
     return futuras[:limite]
 
 
-# Cómo se nombra cada rol en un mensaje al usuario. La forma plural
-# no se deduce en español con una regla de una línea.
-NOMBRE_ROL = {
-    'CONDUCTOR': ('conductor', 'conductores'),
-    'ASISTENTE': ('asistente', 'asistentes'),
+# Cómo se nombra cada puesto del viaje en un mensaje al usuario. La
+# forma plural no se deduce en español con una regla de una línea.
+NOMBRE_PUESTO = {
+    'JEFE_MAQUINA': ('jefe de máquina', 'jefes de máquina'),
+    'SEGUNDO_CONDUCTOR': ('2° conductor', 'segundos conductores'),
+    'AUXILIAR': ('auxiliar', 'auxiliares'),
 }
 
 
@@ -197,11 +198,14 @@ def _alertas_operaciones(posturas_incompletas):
         faltan = []
         if postura.bus_id is None:
             faltan.append('sin bus')
-        for rol, n in postura.faltantes().items():
-            if n:
-                singular, plural = NOMBRE_ROL[rol]
-                faltan.append(f'falta {n} {singular}' if n == 1
-                              else f'faltan {n} {plural}')
+        for puesto, n in postura.faltantes().items():
+            if not n:
+                continue
+            # Un puesto desconocido no puede tumbar el tablero: se
+            # nombra con su código y se sigue.
+            singular, plural = NOMBRE_PUESTO.get(puesto, (puesto, puesto))
+            faltan.append(f'falta {n} {singular}' if n == 1
+                          else f'faltan {n} {plural}')
         alertas.append({
             'nivel': 'warn',
             'titulo': f'Postura {postura.codigo} incompleta',

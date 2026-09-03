@@ -232,6 +232,7 @@ class PosturasParaPersonaView(APIView):
                 'postura': PosturaResumenSerializer(f['postura']).data,
                 'disponible': f['disponible'],
                 'motivo': f['motivo'],
+                'puesto': f['puesto'],
             }
             for f in filas
         ], status=status.HTTP_200_OK)

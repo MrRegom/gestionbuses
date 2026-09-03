@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../api';
+import { PUESTOS } from '../config/dominio';
 import {
   Plus, Search, MapPin, Clock, Edit, Trash2, X, Users,
   CalendarClock, AlertCircle, RefreshCw, Bus as BusIcon, UserPlus, Check,
@@ -17,6 +18,12 @@ const ESTADOS = Object.entries(ESTADO_LABEL);
 
 const FORM_VACIO = { codigo: '', ruta_id: '', fecha: '', hora_salida: '', estado: 'LISTA' };
 
+/** Une una lista como se escribe en castellano: "a, b y c". */
+function enumerar(partes) {
+  if (partes.length <= 1) return partes[0] ?? '';
+  return `${partes.slice(0, -1).join(', ')} y ${partes.at(-1)}`;
+}
+
 /* ─────────────────────────────────────────────────────────────
    Panel de la postura: bus y tripulación.
 
@@ -25,15 +32,14 @@ const FORM_VACIO = { codigo: '', ruta_id: '', fecha: '', hora_salida: '', estado
    ───────────────────────────────────────────────────────────── */
 function PanelPostura({ postura, buses, onCerrar, onCambio }) {
   const [disponibles, setDisponibles] = useState([]);
-  const [dotacion, setDotacion] = useState({ CONDUCTOR: 0, ASISTENTE: 0 });
-  const [faltantes, setFaltantes] = useState({ CONDUCTOR: 2, ASISTENTE: 1 });
+  const [dotacion, setDotacion] = useState({});
+  const [faltantes, setFaltantes] = useState({});
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
-  const [rolNuevo, setRolNuevo] = useState('CONDUCTOR');
-  // Si el rol elegido ya está cubierto, se ofrece el que falta.
-  const rolEfectivo = faltantes[rolNuevo] > 0
-    ? rolNuevo
-    : (faltantes.CONDUCTOR > 0 ? 'CONDUCTOR' : (faltantes.ASISTENTE > 0 ? 'ASISTENTE' : null));
+
+  /* El puesto que toca cubrir. Se sigue el orden de la planilla: primero
+     el jefe de máquina, después el segundo y al final el auxiliar. */
+  const puestoEfectivo = PUESTOS.find(p => faltantes[p.id] > 0)?.id ?? null;
 
   const cargarDisponibles = useCallback(async () => {
     setCargando(true);
@@ -66,16 +72,18 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
 
   const asignarPersona = personaId => accion(() =>
     axios.post(`/api/operaciones/posturas/${postura.id}/asignar/`, {
-      persona_id: personaId, rol_en_viaje: rolEfectivo,
+      persona_id: personaId, rol_en_viaje: puestoEfectivo,
     }));
 
   const quitarPersona = asignacionId => accion(() =>
     axios.delete(`/api/operaciones/asignaciones/${asignacionId}/`));
 
   // Solo se ofrece a quien puede ocupar el puesto que falta: un
-  // asistente no va al volante ni un conductor de asistente.
+  // asistente no va al volante ni un conductor hace de auxiliar.
+  const cargoQueFalta = puestoEfectivo
+    ? PUESTOS.find(p => p.id === puestoEfectivo).cargo : null;
   const libres = disponibles.filter(
-    d => d.disponible && (!rolEfectivo || d.persona.rol === rolEfectivo)
+    d => d.disponible && (!cargoQueFalta || d.persona.rol === cargoQueFalta)
   );
   const ocupados = disponibles.filter(d => !d.disponible && d.motivo !== 'Ya asignado a esta postura');
 
@@ -126,24 +134,28 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
             </select>
           </div>
 
-          {/* ── Tripulación asignada ── */}
+          {/* ── Tripulación asignada ──
+              Se muestran los tres puestos de la planilla, no un conteo de
+              cargos: "jefe de máquina 1/1" dice si está cubierto ese
+              puesto, que es lo que Operaciones necesita saber. */}
           <div className="section-label">Tripulación</div>
-          <div className="grid-2 gap-3 mb-3">
-            <div className="stat-box">
-              <div className="stat-box-label">Conductores</div>
-              <div className="stat-box-value">
-                {dotacion.CONDUCTOR}<span className="fs-12 fw-400 text-muted"> / 2</span>
-              </div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-box-label">Asistente</div>
-              <div className="stat-box-value">
-                {dotacion.ASISTENTE}<span className="fs-12 fw-400 text-muted"> / 1</span>
-              </div>
-            </div>
+          <div className="grid-3 gap-3 mb-3">
+            {PUESTOS.map(p => {
+              const puestos = (dotacion[p.id] ?? 0) + (faltantes[p.id] ?? 0);
+              if (!puestos) return null;
+              return (
+                <div className="stat-box" key={p.id}>
+                  <div className="stat-box-label">{p.corto}</div>
+                  <div className="stat-box-value">
+                    {dotacion[p.id] ?? 0}
+                    <span className="fs-12 fw-400 text-muted"> / {puestos}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {!rolEfectivo ? (
+          {!puestoEfectivo ? (
             <div className="notice ok mb-4">
               <Check size={16} className="notice-icon" />
               <div className="notice-content">Tripulación completa.</div>
@@ -152,11 +164,10 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
             <div className="notice warn mb-4">
               <AlertCircle size={16} className="notice-icon" />
               <div className="notice-content">
-                Faltan{' '}
-                {[
-                  faltantes.CONDUCTOR > 0 && `${faltantes.CONDUCTOR} conductor(es)`,
-                  faltantes.ASISTENTE > 0 && `${faltantes.ASISTENTE} asistente`,
-                ].filter(Boolean).join(' y ')}.
+                Falta{' '}
+                {enumerar(PUESTOS.filter(p => faltantes[p.id] > 0)
+                  .map(p => (faltantes[p.id] > 1
+                    ? `${faltantes[p.id]} ${p.plural}` : p.label.toLowerCase())))}.
               </div>
             </div>
           )}
@@ -172,7 +183,10 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
                       <div className="fs-12 text-muted mono">{t.persona.rut}</div>
                     </div>
                     <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-                      <span className="badge neutral">{t.rol_en_viaje}</span>
+                      <span className="badge neutral">
+                        {PUESTOS.find(p => p.id === t.rol_en_viaje)?.label
+                          ?? t.rol_en_viaje}
+                      </span>
                       <button
                         className="btn-icon"
                         style={{ color: 'var(--danger)', width: 28, height: 28 }}
@@ -194,18 +208,13 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
             <div className="section-label" style={{ marginBottom: 0 }}>
               Personal disponible ({libres.length})
             </div>
-            <select
-              className="form-input form-select btn-sm"
-              style={{ width: 'auto', height: 28, fontSize: 12, padding: '0 28px 0 8px' }}
-              value={rolEfectivo ?? ''}
-              onChange={e => setRolNuevo(e.target.value)}
-              disabled={!rolEfectivo}
-              aria-label="Rol en el viaje"
-            >
-              {faltantes.CONDUCTOR > 0 && <option value="CONDUCTOR">Conductor</option>}
-              {faltantes.ASISTENTE > 0 && <option value="ASISTENTE">Asistente</option>}
-              {!rolEfectivo && <option value="">Completa</option>}
-            </select>
+            {/* No hay nada que elegir: el puesto lo dicta la dotación y
+                se cubre en el orden de la planilla. */}
+            <span className={`badge ${puestoEfectivo ? 'accent' : 'ok'}`}>
+              {puestoEfectivo
+                ? `Falta ${PUESTOS.find(p => p.id === puestoEfectivo).label.toLowerCase()}`
+                : 'Completa'}
+            </span>
           </div>
 
           {cargando && <div className="skeleton" style={{ height: 44 }} />}
@@ -228,8 +237,10 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={() => asignarPersona(persona.id)}
-                  disabled={!rolEfectivo}
-                  title={rolEfectivo ? `Asignar como ${rolEfectivo.toLowerCase()}` : 'Tripulación completa'}
+                  disabled={!puestoEfectivo}
+                  title={puestoEfectivo
+                    ? `Asignar como ${PUESTOS.find(p => p.id === puestoEfectivo).label.toLowerCase()}`
+                    : 'Tripulación completa'}
                 >
                   <UserPlus size={13} /> Asignar
                 </button>

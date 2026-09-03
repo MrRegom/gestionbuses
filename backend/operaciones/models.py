@@ -49,6 +49,20 @@ class Persona(models.Model):
 # arrancar una base vacía.
 DOTACION_INICIAL = {'CONDUCTOR': 2, 'ASISTENTE': 1}
 
+# Qué cargo puede ocupar cada puesto del viaje. Un asistente no va al
+# volante y un conductor no hace de auxiliar: la planilla de Operaciones
+# los lista por separado porque son funciones distintas.
+CARGO_DEL_PUESTO = {
+    'JEFE_MAQUINA': 'CONDUCTOR',
+    'SEGUNDO_CONDUCTOR': 'CONDUCTOR',
+    'AUXILIAR': 'ASISTENTE',
+}
+
+
+def puestos_de(cargo):
+    """Los puestos que puede tomar quien tiene este cargo."""
+    return tuple(p for p, c in CARGO_DEL_PUESTO.items() if c == cargo)
+
 
 class Parametros(models.Model):
     """Las reglas del negocio, editables sin tocar el código.
@@ -108,9 +122,17 @@ class Parametros(models.Model):
 
     @property
     def dotacion(self):
+        """La dotación expresada en puestos del viaje.
+
+        Jefe de máquina hay uno y solo uno: es el puesto de
+        responsabilidad, el que revisa los papeles al llegar. El resto
+        de los conductores van de segundos. Por eso configurar "3
+        conductores" da un jefe y dos segundos, y nunca dos jefes.
+        """
         return {
-            'CONDUCTOR': self.conductores_por_servicio,
-            'ASISTENTE': self.asistentes_por_servicio,
+            'JEFE_MAQUINA': 1 if self.conductores_por_servicio else 0,
+            'SEGUNDO_CONDUCTOR': max(0, self.conductores_por_servicio - 1),
+            'AUXILIAR': self.asistentes_por_servicio,
         }
 
 
@@ -216,9 +238,26 @@ class Postura(models.Model):
         return self.bus_id is not None and self.dotacion_completa
 
 class AsignacionTripulacion(models.Model):
+    """Quién va en un servicio y con qué puesto.
+
+    El puesto no es el cargo. Una persona *es* conductora —eso vive en
+    `Persona.rol`— y en un viaje concreto *va* como jefe de máquina o
+    como segundo. El mismo conductor puede ir de jefe hoy y de segundo
+    mañana; antes el sistema los trataba como intercambiables y perdía
+    esa distinción, que en la planilla de Operaciones está explícita.
+    """
+
+    class Puesto(models.TextChoices):
+        JEFE_MAQUINA = 'JEFE_MAQUINA', 'Jefe de máquina'
+        SEGUNDO_CONDUCTOR = 'SEGUNDO_CONDUCTOR', '2° conductor'
+        AUXILIAR = 'AUXILIAR', 'Auxiliar'
+
     postura = models.ForeignKey(Postura, on_delete=models.CASCADE, related_name='tripulacion')
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE)
-    rol_en_viaje = models.CharField(max_length=20, choices=Persona.Rol.choices)
+    rol_en_viaje = models.CharField(
+        max_length=20, choices=Puesto.choices,
+        help_text='El puesto en este viaje, no el cargo de la persona',
+    )
 
     class Meta:
         verbose_name = 'Asignación de Tripulación'
@@ -226,7 +265,8 @@ class AsignacionTripulacion(models.Model):
         unique_together = ('postura', 'persona')
 
     def __str__(self):
-        return f"{self.persona.nombre} en {self.postura.codigo}"
+        return (f'{self.persona.nombre} en {self.postura.codigo} '
+                f'({self.get_rol_en_viaje_display()})')
 
 
 class Corrida(models.Model):
