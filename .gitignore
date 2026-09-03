@@ -41,3 +41,8 @@ dist-ssr/
 *.sln
 *.sw?
 .DS_Store
+
+# Graphify: grafo de conocimiento generado.
+# Se reconstruye solo con el hook de git (post-commit y post-checkout),
+# asi que versionarlo seria commitear 2 MB derivados en cada cambio.
+graphify-out/
