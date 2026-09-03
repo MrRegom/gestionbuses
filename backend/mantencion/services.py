@@ -4,11 +4,166 @@ from django.utils import timezone
 from flota.models import Bus
 from operaciones.models import Persona, Postura
 
-from .models import Checklist, RespuestaChecklist, Incidente, OrdenTrabajo
+from .models import (
+    CategoriaChecklist, Checklist, Incidente, ItemChecklist, OrdenTrabajo,
+    RespuestaChecklist,
+)
 from .repositories import (
     PlantillaRepository, ChecklistRepository, IncidenteRepository,
     OrdenTrabajoRepository,
 )
+
+
+class PlantillaService:
+    """Alta y edición del formulario del checklist.
+
+    El modelo decía desde el principio que estas categorías e ítems son
+    datos y no código, para que Operaciones pudiera cambiarlos. Faltaba
+    lo que hacía cierta esa frase: una forma de tocarlos sin entrar a la
+    base.
+
+    Un ítem no se borra si ya fue respondido alguna vez: eso reescribiría
+    revisiones firmadas. Para sacarlo de circulación se desactiva, y
+    entonces deja de pedirse en los checklists nuevos sin borrar los
+    viejos.
+    """
+
+    # ── Categorías ──
+    @staticmethod
+    def get_categorias():
+        return (CategoriaChecklist.objects
+                .prefetch_related('items')
+                .order_by('orden', 'id'))
+
+    @staticmethod
+    def crear_categoria(data: dict):
+        nombre = (data.get('nombre') or '').strip()
+        if not nombre:
+            raise ValueError('La categoría necesita un nombre.')
+        if CategoriaChecklist.objects.filter(nombre__iexact=nombre).exists():
+            raise ValueError(f'Ya existe una categoría llamada "{nombre}".')
+
+        return CategoriaChecklist.objects.create(
+            nombre=nombre,
+            orden=int(data.get('orden') or 0),
+            activa=bool(data.get('activa', True)),
+        )
+
+    @staticmethod
+    def actualizar_categoria(categoria_id: int, data: dict):
+        categoria = CategoriaChecklist.objects.filter(id=categoria_id).first()
+        if not categoria:
+            raise ValueError('Categoría no encontrada')
+
+        if 'nombre' in data:
+            nombre = (data['nombre'] or '').strip()
+            if not nombre:
+                raise ValueError('La categoría necesita un nombre.')
+            repetida = (CategoriaChecklist.objects
+                        .filter(nombre__iexact=nombre)
+                        .exclude(id=categoria_id).exists())
+            if repetida:
+                raise ValueError(f'Ya existe una categoría llamada "{nombre}".')
+            categoria.nombre = nombre
+
+        if 'orden' in data:
+            categoria.orden = int(data['orden'] or 0)
+        if 'activa' in data:
+            categoria.activa = bool(data['activa'])
+
+        categoria.save()
+        return categoria
+
+    @staticmethod
+    def eliminar_categoria(categoria_id: int):
+        categoria = CategoriaChecklist.objects.filter(id=categoria_id).first()
+        if not categoria:
+            raise ValueError('Categoría no encontrada')
+
+        respondidos = RespuestaChecklist.objects.filter(
+            item__categoria=categoria).exists()
+        if respondidos:
+            raise ValueError(
+                f'"{categoria.nombre}" ya se usó en checklists hechos. '
+                'Desactívala en vez de eliminarla: deja de pedirse y las '
+                'revisiones anteriores quedan intactas.'
+            )
+        categoria.delete()
+
+    # ── Ítems ──
+    @staticmethod
+    def crear_item(data: dict):
+        categoria = CategoriaChecklist.objects.filter(
+            id=data.get('categoria_id')).first()
+        if not categoria:
+            raise ValueError('Elige la categoría del ítem.')
+
+        descripcion = (data.get('descripcion') or '').strip()
+        if not descripcion:
+            raise ValueError('El ítem necesita una descripción.')
+        if ItemChecklist.objects.filter(
+                categoria=categoria, descripcion__iexact=descripcion).exists():
+            raise ValueError(
+                f'"{categoria.nombre}" ya tiene un ítem con esa descripción.')
+
+        return ItemChecklist.objects.create(
+            categoria=categoria,
+            descripcion=descripcion,
+            orden=int(data.get('orden') or 0),
+            critico=bool(data.get('critico', False)),
+            activo=bool(data.get('activo', True)),
+        )
+
+    @staticmethod
+    def actualizar_item(item_id: int, data: dict):
+        item = PlantillaRepository.get_item_by_id(item_id)
+        if not item:
+            raise ValueError('Ítem no encontrado')
+
+        if 'categoria_id' in data:
+            categoria = CategoriaChecklist.objects.filter(
+                id=data['categoria_id']).first()
+            if not categoria:
+                raise ValueError('Categoría no encontrada')
+            item.categoria = categoria
+
+        if 'descripcion' in data:
+            descripcion = (data['descripcion'] or '').strip()
+            if not descripcion:
+                raise ValueError('El ítem necesita una descripción.')
+            repetido = (ItemChecklist.objects
+                        .filter(categoria=item.categoria,
+                                descripcion__iexact=descripcion)
+                        .exclude(id=item_id).exists())
+            if repetido:
+                raise ValueError(
+                    f'"{item.categoria.nombre}" ya tiene un ítem con esa '
+                    'descripción.')
+            item.descripcion = descripcion
+
+        if 'orden' in data:
+            item.orden = int(data['orden'] or 0)
+        if 'critico' in data:
+            item.critico = bool(data['critico'])
+        if 'activo' in data:
+            item.activo = bool(data['activo'])
+
+        item.save()
+        return item
+
+    @staticmethod
+    def eliminar_item(item_id: int):
+        item = PlantillaRepository.get_item_by_id(item_id)
+        if not item:
+            raise ValueError('Ítem no encontrado')
+
+        if RespuestaChecklist.objects.filter(item=item).exists():
+            raise ValueError(
+                f'"{item.descripcion}" ya fue respondido en checklists hechos. '
+                'Desactívalo en vez de eliminarlo: deja de pedirse y las '
+                'revisiones anteriores quedan intactas.'
+            )
+        item.delete()
 
 
 class ChecklistService:

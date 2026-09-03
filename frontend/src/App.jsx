@@ -14,6 +14,7 @@ import Reportes from './pages/Reportes';
 import Checklist from './pages/Checklist';
 import Incidentes from './pages/Incidentes';
 import Corridas from './pages/Corridas';
+import Configuracion from './pages/Configuracion';
 import EnConstruccion from './pages/EnConstruccion';
 import SinAcceso from './pages/SinAcceso';
 
@@ -61,6 +62,7 @@ function Aplicacion() {
         <Route path="checklist" element={<Protegida><Checklist /></Protegida>} />
 
         <Route path="corridas" element={<Protegida><Corridas /></Protegida>} />
+        <Route path="configuracion" element={<Protegida><Configuracion /></Protegida>} />
 
         {/* Cualquier URL desconocida cae aquí en vez de mostrar nada. */}
         <Route path="*" element={<EnConstruccion />} />

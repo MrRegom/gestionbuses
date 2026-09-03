@@ -1,7 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from core.permissions import EscrituraPorRol, SoloLecturaMonitoreo, OPERACIONES
+from core.permissions import (
+    EscrituraPorRol, SoloLecturaMonitoreo, OPERACIONES, TODOS, persona_de,
+)
 from flota.serializers import BusSerializer
 
 from .services import TripulacionService
@@ -90,8 +92,12 @@ class AsignarTripulacionView(APIView):
 
 
 # ── PERSONAL ─────────────────────────────────────────────────
-from .services import PersonalService, CatalogoService  # noqa: E402
-from .serializers import CiudadSerializer  # noqa: E402
+from .services import (  # noqa: E402
+    PersonalService, CatalogoService, ParametrosService,
+)
+from .serializers import (  # noqa: E402
+    CiudadSerializer, ParametrosSerializer,
+)
 
 
 class PersonalCreateView(APIView):
@@ -166,12 +172,62 @@ class RutaDetailView(APIView):
     permission_classes = [EscrituraPorRol]
     roles_permitidos = OPERACIONES
 
+    def put(self, request, pk):
+        serializer = RutaSerializer(data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ruta = CatalogoService.actualizar_ruta(pk, serializer.validated_data)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(RutaSerializer(ruta).data, status=status.HTTP_200_OK)
+
     def delete(self, request, pk):
         try:
             CatalogoService.eliminar_ruta(pk)
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CiudadDetailView(APIView):
+    permission_classes = [EscrituraPorRol]
+    roles_permitidos = OPERACIONES
+
+    def delete(self, request, pk):
+        try:
+            CatalogoService.eliminar_ciudad(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ParametrosView(APIView):
+    """Las reglas del negocio: dotación por servicio y tope de horas.
+
+    Cualquiera con cuenta puede leerlas —la interfaz las necesita para
+    saber contra qué medir— pero solo Operaciones las cambia, y la Sala
+    de Monitoreo tampoco, que es de solo lectura.
+    """
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
+
+    def get(self, request):
+        return Response(ParametrosSerializer(ParametrosService.actuales()).data,
+                        status=status.HTTP_200_OK)
+
+    def put(self, request):
+        persona = persona_de(request)
+        if persona.rol not in OPERACIONES:
+            return Response(
+                {'error': 'Solo Operaciones puede cambiar las reglas del sistema.'},
+                status=status.HTTP_403_FORBIDDEN)
+        try:
+            parametros = ParametrosService.actualizar(request.data, persona)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ParametrosSerializer(parametros).data,
+                        status=status.HTTP_200_OK)
 
 
 # ── POSTURA: BUS, TRIPULACIÓN Y DISPONIBILIDAD ───────────────
@@ -231,7 +287,6 @@ class PersonalDisponibleView(APIView):
 
 
 # ── CORRIDAS ─────────────────────────────────────────────────
-from core.permissions import persona_de  # noqa: E402
 from .services import CorridaService  # noqa: E402
 from .serializers import CorridaSerializer, PosturaResumenSerializer  # noqa: E402
 

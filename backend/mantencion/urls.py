@@ -8,11 +8,19 @@ from .views import (
     TableroView, OrdenListCreateView, OrdenAsignarView,
     OrdenIniciarView, OrdenCompletarView,
     BusLiberarView, BusNoOperativoView,
+    PlantillaEditarView, PlantillaCategoriaView,
+    PlantillaItemCreateView, PlantillaItemView,
 )
 
 urlpatterns = [
     # Plantilla del formulario
     path('checklist/plantilla/', PlantillaChecklistView.as_view(), name='checklist-plantilla'),
+
+    # Edición de la plantilla, desde Configuración
+    path('plantilla/', PlantillaEditarView.as_view(), name='plantilla-list-create'),
+    path('plantilla/categorias/<int:pk>/', PlantillaCategoriaView.as_view(), name='plantilla-categoria'),
+    path('plantilla/items/', PlantillaItemCreateView.as_view(), name='plantilla-item-create'),
+    path('plantilla/items/<int:pk>/', PlantillaItemView.as_view(), name='plantilla-item'),
 
     # Checklists
     path('checklist/', ChecklistListCreateView.as_view(), name='checklist-list-create'),

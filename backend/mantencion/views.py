@@ -3,16 +3,19 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.permissions import (
-    RolPermitido, SoloLecturaMonitoreo, TALLER, TODOS, persona_de,
+    RolPermitido, SoloLecturaMonitoreo, OPERACIONES, TALLER, TODOS, persona_de,
 )
 
 from flota.serializers import BusSerializer
 from operaciones.serializers import PersonaSerializer
 
-from .services import ChecklistService, IncidenteService, TallerService
+from .services import (
+    ChecklistService, IncidenteService, PlantillaService, TallerService,
+)
 from .serializers import (
-    CategoriaChecklistSerializer, ChecklistSerializer,
-    ChecklistResumenSerializer, IncidenteSerializer, OrdenTrabajoSerializer,
+    CategoriaChecklistSerializer, CategoriaPlantillaSerializer,
+    ChecklistSerializer, ChecklistResumenSerializer, IncidenteSerializer,
+    ItemPlantillaSerializer, OrdenTrabajoSerializer,
 )
 
 
@@ -275,3 +278,87 @@ class BusNoOperativoView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(BusSerializer(bus).data, status=status.HTTP_200_OK)
+
+
+# ── PLANTILLA: EDICIÓN ───────────────────────────────────────
+# Quien define qué se revisa antes de salir es Operaciones, no el
+# taller: es una decisión de procedimiento, no de mantenimiento.
+EDITA_PLANTILLA = OPERACIONES
+_SOLO_OPERACIONES = 'Solo Operaciones define qué se revisa en el checklist.'
+
+
+class PlantillaEditarView(APIView):
+    """Categorías del checklist, incluidas las desactivadas."""
+    permission_classes = [SoloLecturaMonitoreo]
+    roles_permitidos = TODOS
+
+    def get(self, request):
+        return Response(
+            CategoriaPlantillaSerializer(
+                PlantillaService.get_categorias(), many=True).data,
+            status=status.HTTP_200_OK)
+
+    def post(self, request):
+        if persona_de(request).rol not in EDITA_PLANTILLA:
+            return Response({'error': _SOLO_OPERACIONES},
+                            status=status.HTTP_403_FORBIDDEN)
+        try:
+            categoria = PlantillaService.crear_categoria(request.data)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CategoriaPlantillaSerializer(categoria).data,
+                        status=status.HTTP_201_CREATED)
+
+
+class PlantillaCategoriaView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = EDITA_PLANTILLA
+
+    def put(self, request, pk):
+        try:
+            categoria = PlantillaService.actualizar_categoria(pk, request.data)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CategoriaPlantillaSerializer(categoria).data,
+                        status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        try:
+            PlantillaService.eliminar_categoria(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PlantillaItemCreateView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = EDITA_PLANTILLA
+
+    def post(self, request):
+        try:
+            item = PlantillaService.crear_item(request.data)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ItemPlantillaSerializer(item).data,
+                        status=status.HTTP_201_CREATED)
+
+
+class PlantillaItemView(APIView):
+    permission_classes = [RolPermitido]
+    roles_permitidos = EDITA_PLANTILLA
+
+    def put(self, request, pk):
+        try:
+            item = PlantillaService.actualizar_item(pk, request.data)
+        except (ValueError, TypeError) as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ItemPlantillaSerializer(item).data,
+                        status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        try:
+            PlantillaService.eliminar_item(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+

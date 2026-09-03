@@ -4,32 +4,31 @@ from django.db import transaction
 
 from .repositories import PersonaRepository
 from .models import (
-    Persona, Postura, AsignacionTripulacion, Corrida, DOTACION_REQUERIDA,
-    HORAS_CONDUCCION_MAX, HORAS_CONDUCCION_AVISO,
+    Ciudad, Corrida, Parametros, Persona, Postura, AsignacionTripulacion,
+    dotacion_requerida, horas_conduccion,
 )
 
 def semaforo_por_horas(horas):
     """Traduce horas al volante en color de semáforo y su motivo.
 
-    El tope son cinco horas continuas (Persona.HORAS_CONDUCCION_MAX).
-    Antes esto usaba 8 y 6, que fueron cifras inventadas mientras no
-    teníamos la regla; Operaciones confirmó que el máximo real es cinco.
+    El tope lo fija Operaciones desde Configuración; hoy son cinco horas
+    continuas. Antes estaba escrito en el código en ocho y seis, cifras
+    que no venían de nadie.
 
     Vive aquí y no dentro del servicio para que la semilla y cualquier
     otro punto usen exactamente el mismo criterio.
     """
     horas = float(horas)
+    maximo, aviso = horas_conduccion()
 
-    if horas >= HORAS_CONDUCCION_MAX:
+    if horas >= maximo:
         return (Persona.Semaforo.ROJO,
-                f'Alcanzó el máximo de {HORAS_CONDUCCION_MAX:g} h continuas '
-                f'de conducción.')
+                f'Alcanzó el máximo de {maximo:g} h continuas de conducción.')
 
-    if horas >= HORAS_CONDUCCION_AVISO:
-        restan = HORAS_CONDUCCION_MAX - horas
+    if horas >= aviso:
         return (Persona.Semaforo.AMARILLO,
-                f'Le quedan {restan:g} h antes del máximo de '
-                f'{HORAS_CONDUCCION_MAX:g} h continuas.')
+                f'Le quedan {maximo - horas:g} h antes del máximo de '
+                f'{maximo:g} h continuas.')
 
     return Persona.Semaforo.VERDE, None
 
@@ -63,6 +62,31 @@ def _ventana(postura):
     inicio = datetime.combine(postura.fecha, postura.hora_salida)
     horas = float(postura.ruta.duracion_estimada or 0)
     return inicio, inicio + timedelta(hours=horas)
+
+
+def _duracion_maxima():
+    """Horas de la ruta más larga del catálogo."""
+    from django.db.models import Max
+    from .models import Ruta
+
+    mayor = Ruta.objects.aggregate(Max('duracion_estimada'))['duracion_estimada__max']
+    return float(mayor or 0)
+
+
+def _fechas_candidatas(postura):
+    """Rango de fechas donde puede haber un servicio que se pise con este.
+
+    Mirar solo el mismo día no alcanza. El viaje a Arica dura treinta y
+    dos horas: sale un martes y llega el miércoles por la tarde, así que
+    quien va en él tampoco está libre el miércoles, y el bus tampoco. Y
+    al revés: un servicio que salió anteayer puede seguir en ruta hoy.
+
+    El margen hacia atrás es la ruta más larga del catálogo, que es lo
+    máximo que puede llevar andando algo que salió antes.
+    """
+    inicio, fin = _ventana(postura)
+    margen = timedelta(hours=_duracion_maxima())
+    return (inicio - margen).date(), fin.date()
 
 
 def _se_solapan(a, b):
@@ -148,9 +172,10 @@ class PlanificacionService:
             )
 
         # Nadie puede estar en dos servicios que se pisan en el horario.
+        desde, hasta = _fechas_candidatas(postura)
         otras = (
             AsignacionTripulacion.objects
-            .filter(persona=persona, postura__fecha=postura.fecha)
+            .filter(persona=persona, postura__fecha__range=(desde, hasta))
             .exclude(postura=postura)
             .select_related('postura', 'postura__ruta')
         )
@@ -164,7 +189,7 @@ class PlanificacionService:
         # La dotación es fija: dos conductores y un asistente. Sumar uno
         # de más no es un servicio mejor cubierto, es un error de
         # planificación que además bloquea a esa persona para otro viaje.
-        cupo = DOTACION_REQUERIDA.get(rol)
+        cupo = dotacion_requerida().get(rol)
         if cupo is None:
             raise ValueError(f'Rol en viaje inválido: {rol}')
 
@@ -217,9 +242,10 @@ class PlanificacionService:
 
         # Un bus hace varios servicios al día; lo que no puede es estar
         # en dos que se pisan en el horario.
+        desde, hasta = _fechas_candidatas(postura)
         otras = (
             Postura.objects
-            .filter(bus=bus, fecha=postura.fecha)
+            .filter(bus=bus, fecha__range=(desde, hasta))
             .exclude(id=postura.id)
             .select_related('ruta')
         )
@@ -251,10 +277,11 @@ class PlanificacionService:
             rol__in=[Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE]
         ).order_by('nombre')
 
+        desde, hasta = _fechas_candidatas(postura)
         ocupados = {
             a.persona_id: a.postura.codigo
             for a in AsignacionTripulacion.objects
-            .filter(postura__fecha=postura.fecha)
+            .filter(postura__fecha__range=(desde, hasta))
             .exclude(postura=postura)
             .select_related('postura', 'postura__ruta')
             if _se_solapan(postura, a.postura)
@@ -347,6 +374,36 @@ class CatalogoService:
         return RutaRepositoryExtra.create(data)
 
     @staticmethod
+    def actualizar_ruta(ruta_id: int, data: dict):
+        """Corrige una ruta ya creada.
+
+        Existe sobre todo por la duración: es el dato con el que el
+        sistema decide si dos servicios se pisan y cuántos relevos
+        necesita un viaje. Si el número está mal, no había forma de
+        arreglarlo sin entrar a la base.
+        """
+        from .repositories import RutaRepository
+
+        ruta = RutaRepository.get_ruta_by_id(ruta_id)
+        if not ruta:
+            raise ValueError("Ruta no encontrada")
+
+        origen = data.get('origen', ruta.origen)
+        destino = data.get('destino', ruta.destino)
+        if origen == destino:
+            raise ValueError("El origen y el destino no pueden ser la misma ciudad.")
+
+        duracion = data.get('duracion_estimada', ruta.duracion_estimada)
+        if float(duracion) <= 0:
+            raise ValueError("La duración tiene que ser mayor que cero.")
+
+        ruta.origen = origen
+        ruta.destino = destino
+        ruta.duracion_estimada = duracion
+        ruta.save()
+        return ruta
+
+    @staticmethod
     def eliminar_ruta(ruta_id: int):
         from .repositories import RutaRepository, RutaRepositoryExtra
         ruta = RutaRepository.get_ruta_by_id(ruta_id)
@@ -355,6 +412,92 @@ class CatalogoService:
         if ruta.postura_set.exists():
             raise ValueError("La ruta tiene posturas asociadas y no puede eliminarse.")
         RutaRepositoryExtra.delete(ruta)
+
+    @staticmethod
+    def eliminar_ciudad(ciudad_id: int):
+        """Una ciudad solo se va si no queda ninguna ruta apoyada en ella."""
+        ciudad = Ciudad.objects.filter(id=ciudad_id).first()
+        if not ciudad:
+            raise ValueError("Ciudad no encontrada")
+
+        usos = ciudad.rutas_origen.count() + ciudad.rutas_destino.count()
+        if usos:
+            raise ValueError(
+                f"{ciudad.nombre} se usa en {usos} ruta(s). "
+                "Elimina esas rutas antes."
+            )
+        ciudad.delete()
+
+
+class ParametrosService:
+    """Las reglas del negocio, editables desde Configuración."""
+
+    @staticmethod
+    def actuales():
+        return Parametros.actual()
+
+    @staticmethod
+    def actualizar(data: dict, persona=None):
+        p = Parametros.actual()
+
+        conductores = int(data.get('conductores_por_servicio',
+                                   p.conductores_por_servicio))
+        asistentes = int(data.get('asistentes_por_servicio',
+                                  p.asistentes_por_servicio))
+        maximo = float(data.get('horas_conduccion_max', p.horas_conduccion_max))
+        aviso = float(data.get('horas_conduccion_aviso', p.horas_conduccion_aviso))
+
+        # Un servicio sin conductor no es un servicio.
+        if conductores < 1:
+            raise ValueError('Cada servicio necesita al menos un conductor.')
+        if asistentes < 0:
+            raise ValueError('Los asistentes no pueden ser un número negativo.')
+        if maximo <= 0:
+            raise ValueError('El máximo de horas tiene que ser mayor que cero.')
+        # Avisar después del tope no avisa nada.
+        if aviso >= maximo:
+            raise ValueError(
+                'El aviso tiene que ser menor que el máximo: si no, salta '
+                'cuando ya se pasó el límite.'
+            )
+
+        p.conductores_por_servicio = conductores
+        p.asistentes_por_servicio = asistentes
+        p.horas_conduccion_max = maximo
+        p.horas_conduccion_aviso = aviso
+        p.actualizado_por = persona
+        p.save()
+
+        ParametrosService._recalcular_semaforos()
+        return p
+
+    @staticmethod
+    def _recalcular_semaforos():
+        """Reevalúa a toda la tripulación con el tope recién guardado.
+
+        El semáforo es una foto: se calcula al registrar horas y queda
+        grabado. Si Operaciones baja el máximo de seis a cinco, quien
+        llevaba cinco horas y media pasó a estar sobre el límite, pero su
+        fila seguiría diciendo verde hasta la próxima vez que alguien le
+        sumara horas. Bajar el tope y que nadie se bloquee es peor que no
+        poder bajarlo.
+        """
+        from .models import Persona
+
+        pendientes = []
+        for p in Persona.objects.filter(
+            rol__in=[Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE]
+        ):
+            color, razon = semaforo_por_horas(p.horas_hoy)
+            if p.semaforo != color or p.razon_bloqueo != razon:
+                p.semaforo = color
+                p.razon_bloqueo = razon
+                pendientes.append(p)
+
+        if pendientes:
+            Persona.objects.bulk_update(
+                pendientes, ['semaforo', 'razon_bloqueo'])
+        return len(pendientes)
 
 
 class CorridaService:

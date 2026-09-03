@@ -19,9 +19,7 @@ from django.utils import timezone
 
 from core.permissions import TALLER, TRIPULACION
 from flota.models import Bus
-from operaciones.models import (
-    Corrida, Persona, Postura, HORAS_CONDUCCION_MAX,
-)
+from operaciones.models import Corrida, Persona, Postura, horas_conduccion
 from mantencion.models import (
     Checklist, Incidente, OrdenTrabajo, RespuestaChecklist,
 )
@@ -307,7 +305,7 @@ def _dashboard_tripulacion(persona):
             # dice al conductor cuánto le queda antes del relevo.
             {'id': 'horas', 'label': 'Horas al volante hoy',
              'valor': persona.horas_hoy,
-             'total': f'{HORAS_CONDUCCION_MAX:g} h',
+             'total': f'{horas_conduccion()[0]:g} h',
              'tono': TONO_SEMAFORO[persona.semaforo]},
             {'id': 'incidentes', 'label': 'Fallas que reporté',
              'valor': mis_incidentes, 'tono': 'warn'},

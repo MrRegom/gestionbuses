@@ -48,10 +48,99 @@ class Persona(models.Model):
 # Operaciones: dos conductores que se turnan al volante y un asistente.
 # Vive aquí, y no repartida por el código, para que cambiarla sea tocar
 # una sola línea.
-DOTACION_REQUERIDA = {
-    'CONDUCTOR': 2,
-    'ASISTENTE': 1,
-}
+# Valores iniciales. Los vigentes los manda `Parametros`, que se edita
+# desde la pantalla de Configuración: estas cifras solo sirven para
+# arrancar una base vacía.
+DOTACION_INICIAL = {'CONDUCTOR': 2, 'ASISTENTE': 1}
+HORAS_CONDUCCION_MAX_INICIAL = 5.0
+HORAS_CONDUCCION_AVISO_INICIAL = 4.0
+
+
+class Parametros(models.Model):
+    """Las reglas del negocio, editables sin tocar el código.
+
+    Antes vivían como constantes de Python: cambiar el tope de horas o
+    la dotación exigía un programador y un despliegue. Son decisiones de
+    Operaciones, no de ingeniería, así que viven en la base.
+
+    Es una fila única (pk=1). No se usa un modelo por parámetro porque
+    son pocos y se editan juntos en una sola pantalla.
+    """
+
+    conductores_por_servicio = models.PositiveSmallIntegerField(
+        default=DOTACION_INICIAL['CONDUCTOR'],
+        help_text='Cuántos conductores lleva cada servicio',
+    )
+    asistentes_por_servicio = models.PositiveSmallIntegerField(
+        default=DOTACION_INICIAL['ASISTENTE'],
+        help_text='Cuántos asistentes lleva cada servicio',
+    )
+    horas_conduccion_max = models.DecimalField(
+        max_digits=4, decimal_places=1,
+        default=HORAS_CONDUCCION_MAX_INICIAL,
+        help_text='Máximo de horas continuas al volante',
+    )
+    horas_conduccion_aviso = models.DecimalField(
+        max_digits=4, decimal_places=1,
+        default=HORAS_CONDUCCION_AVISO_INICIAL,
+        help_text='A partir de cuántas horas se avisa (semáforo amarillo)',
+    )
+    actualizado_en = models.DateTimeField(auto_now=True)
+    actualizado_por = models.ForeignKey(
+        'Persona', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+    )
+
+    class Meta:
+        verbose_name = 'Parámetros del sistema'
+        verbose_name_plural = 'Parámetros del sistema'
+
+    def __str__(self):
+        return (f'{self.conductores_por_servicio}C+{self.asistentes_por_servicio}A, '
+                f'max {self.horas_conduccion_max} h')
+
+    def save(self, *args, **kwargs):
+        # Fila única: cualquier guardado escribe sobre la misma.
+        self.pk = 1
+        super().save(*args, **kwargs)
+        _vigentes.clear()
+
+    def delete(self, *args, **kwargs):
+        raise ValueError('Los parámetros del sistema no se eliminan.')
+
+    @classmethod
+    def actual(cls):
+        """La configuración vigente, creándola con los valores iniciales
+        la primera vez.
+
+        Se memoriza en el proceso porque `dotacion()` se llama una vez
+        por postura al pintar un listado. La memoria se limpia al
+        guardar; en un despliegue con varios procesos cada uno la
+        refresca al guardar el suyo o al reiniciarse.
+        """
+        if 'obj' not in _vigentes:
+            _vigentes['obj'] = cls.objects.get_or_create(pk=1)[0]
+        return _vigentes['obj']
+
+    @property
+    def dotacion(self):
+        return {
+            'CONDUCTOR': self.conductores_por_servicio,
+            'ASISTENTE': self.asistentes_por_servicio,
+        }
+
+
+_vigentes = {}
+
+
+def dotacion_requerida():
+    """Composición de la tripulación según la configuración vigente.
+
+    Con el tope de horas continuas, un servicio más largo que ese tope
+    necesita que los conductores se releven: por eso van dos. Si algún
+    día cambia, se cambia aquí —desde la pantalla— y no en el código.
+    """
+    return Parametros.actual().dotacion
 
 # Límite de conducción confirmado con Operaciones: cinco horas
 # continuas al volante como máximo.
@@ -63,8 +152,10 @@ DOTACION_REQUERIDA = {
 #
 # El aviso se levanta antes del tope para que Operaciones alcance a
 # mover a alguien, no cuando ya es tarde.
-HORAS_CONDUCCION_MAX = 5.0
-HORAS_CONDUCCION_AVISO = 4.0
+def horas_conduccion():
+    """(máximo, aviso) en horas, según la configuración vigente."""
+    p = Parametros.actual()
+    return float(p.horas_conduccion_max), float(p.horas_conduccion_aviso)
 
 
 class Ciudad(models.Model):
@@ -124,7 +215,7 @@ class Postura(models.Model):
 
     def dotacion(self):
         """Cuántos van asignados por rol."""
-        conteo = {rol: 0 for rol in DOTACION_REQUERIDA}
+        conteo = {rol: 0 for rol in dotacion_requerida()}
         for a in self.tripulacion.all():
             if a.rol_en_viaje in conteo:
                 conteo[a.rol_en_viaje] += 1
@@ -134,8 +225,8 @@ class Postura(models.Model):
         """Cuántos faltan por rol para completar la tripulación."""
         actual = self.dotacion()
         return {
-            rol: max(0, requerido - actual[rol])
-            for rol, requerido in DOTACION_REQUERIDA.items()
+            rol: max(0, requerido - actual.get(rol, 0))
+            for rol, requerido in dotacion_requerida().items()
         }
 
     @property

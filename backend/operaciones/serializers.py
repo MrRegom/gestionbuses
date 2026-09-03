@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import Persona, Ciudad, Ruta, Postura, AsignacionTripulacion, Corrida
+from .models import (
+    Persona, Ciudad, Ruta, Postura, AsignacionTripulacion, Corrida,
+    Parametros,
+)
 from flota.serializers import BusSerializer
 
 class PersonaSerializer(serializers.ModelSerializer):
@@ -74,4 +77,19 @@ class CorridaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'bus_original', 'bus_sustituto', 'motivo', 'estado',
             'creado_por', 'posturas', 'creado_en', 'cerrado_en',
+        ]
+
+
+class ParametrosSerializer(serializers.ModelSerializer):
+    """Las reglas vigentes tal como las ve la pantalla de Configuración."""
+    actualizado_por_nombre = serializers.CharField(
+        source='actualizado_por.nombre', read_only=True, default=None,
+    )
+
+    class Meta:
+        model = Parametros
+        fields = [
+            'conductores_por_servicio', 'asistentes_por_servicio',
+            'horas_conduccion_max', 'horas_conduccion_aviso',
+            'actualizado_en', 'actualizado_por_nombre',
         ]

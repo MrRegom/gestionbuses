@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, CalendarClock, Users, Navigation,
   Bus, AlertTriangle, ClipboardCheck, Wrench, Shield, Radio,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 /* Perfiles del sistema (README §3). Deben coincidir con
@@ -162,6 +163,20 @@ export const NAV_GROUPS = [
         title: 'Reportes y Auditoría',
         subtitle: 'Métricas de rendimiento e indicadores',
         ready: true,
+        roles: OPERACIONES,
+      },
+      {
+        id: 'configuracion',
+        path: '/configuracion',
+        label: 'Configuración',
+        short: 'Config',
+        icon: SlidersHorizontal,
+        title: 'Configuración',
+        subtitle: 'Reglas, rutas y plantilla del checklist',
+        ready: true,
+        // Quien define la dotación, el tope de horas y qué se revisa
+        // antes de salir es Operaciones. Monitoreo entra en solo
+        // lectura, como en el resto del sistema.
         roles: OPERACIONES,
       },
     ],

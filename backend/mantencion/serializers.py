@@ -30,6 +30,33 @@ class CategoriaChecklistSerializer(serializers.ModelSerializer):
         return ItemChecklistSerializer(activos, many=True).data
 
 
+class ItemPlantillaSerializer(serializers.ModelSerializer):
+    """Como lo ve Configuración: con los inactivos y sus banderas."""
+
+    class Meta:
+        model = ItemChecklist
+        fields = ['id', 'categoria', 'descripcion', 'orden', 'critico', 'activo']
+
+
+class CategoriaPlantillaSerializer(serializers.ModelSerializer):
+    """A diferencia de la plantilla que recibe el móvil, esta trae
+    también lo desactivado: es la pantalla donde se vuelve a activar."""
+    items = serializers.SerializerMethodField()
+    respondida = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CategoriaChecklist
+        fields = ['id', 'nombre', 'orden', 'activa', 'respondida', 'items']
+
+    def get_items(self, obj):
+        items = sorted(obj.items.all(), key=lambda i: (i.orden, i.id))
+        return ItemPlantillaSerializer(items, many=True).data
+
+    def get_respondida(self, obj):
+        """Si ya se usó, la interfaz ofrece desactivar en vez de borrar."""
+        return RespuestaChecklist.objects.filter(item__categoria=obj).exists()
+
+
 class RespuestaChecklistSerializer(serializers.ModelSerializer):
     item = ItemChecklistSerializer(read_only=True)
     categoria = serializers.CharField(source='item.categoria.nombre', read_only=True)

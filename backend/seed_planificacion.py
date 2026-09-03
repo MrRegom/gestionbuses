@@ -17,6 +17,7 @@ Ciudad.objects.all().delete()
 # Todos los destinos son desde/hacia Santiago (zona sur)
 ciudades_nombres = [
     'Santiago',
+    # ── Zona sur ──
     'Chillán',
     'Concepción',
     'Los Ángeles',
@@ -25,6 +26,14 @@ ciudades_nombres = [
     'Coronel',
     'Lota',
     'Cañete',
+    # ── Zona norte ──
+    # Operaciones confirmó que el destino de la planilla es Calama y que
+    # el viaje a Arica son 32 horas. El norte es la mitad larga del
+    # negocio y faltaba entera en el catálogo.
+    'Antofagasta',
+    'Calama',
+    'Iquique',
+    'Arica',
 ]
 ciudades = {}
 for nombre in ciudades_nombres:
@@ -54,6 +63,18 @@ rutas_data = [
     (ciudades['Coronel'],      stgo, 6.5),
     (ciudades['Lota'],         stgo, 7.0),
     (ciudades['Cañete'],       stgo, 7.5),
+
+    # ── NORTE ──
+    # Arica son 32 h, dato de Operaciones. El resto son estimaciones por
+    # distancia y hay que confirmarlas con ellos.
+    (stgo, ciudades['Antofagasta'], 18.0),
+    (stgo, ciudades['Calama'],      22.0),
+    (stgo, ciudades['Iquique'],     27.0),
+    (stgo, ciudades['Arica'],       32.0),
+    (ciudades['Antofagasta'], stgo, 18.0),
+    (ciudades['Calama'],      stgo, 22.0),
+    (ciudades['Iquique'],     stgo, 27.0),
+    (ciudades['Arica'],       stgo, 32.0),
 ]
 
 rutas = []
@@ -68,6 +89,10 @@ def ruta(origen, destino):
 # ── 4. Buses disponibles ────────────────────────────────────────────────────────
 buses = list(Bus.objects.all())
 def bus(i): return buses[i] if len(buses) > i else None
+
+# Para la fila real de la planilla hace falta el bus por su número
+# interno, no por posición en la lista.
+def maquina(numero): return Bus.objects.filter(numero=numero).first()
 
 # ── 5. Posturas del día ─────────────────────────────────────────────────────────
 hoy = datetime.date.today()
@@ -90,6 +115,16 @@ posturas_data = [
     { 'codigo':'112212', 'ruta': ruta('Concepción','Santiago'),   'fecha':hoy, 'hora_salida':'06:30', 'bus':bus(0), 'estado':'COMPLETA' },
     { 'codigo':'112213', 'ruta': ruta('Los Ángeles','Santiago'),  'fecha':hoy, 'hora_salida':'07:00', 'bus':bus(1), 'estado':'ALERTA'   },
     { 'codigo':'112214', 'ruta': ruta('Talcahuano','Santiago'),   'fecha':hoy, 'hora_salida':'07:30', 'bus':bus(2), 'estado':'EN_CURSO' },
+
+    # La fila real de la planilla de Operaciones, tal como la pasaron:
+    #
+    #   12:05   Calama   112218   17   victor veliz  patricio rolla  joao dos santos
+    #   hora    destino  código   bus  ─────────── los tres tripulantes ───────────
+    #
+    # Es el único servicio de esta lista que no es invención: sirve de
+    # referencia para comprobar que el sistema representa la planilla
+    # entera sin perder ni un campo.
+    { 'codigo':'112218', 'ruta': ruta('Santiago','Calama'),       'fecha':hoy, 'hora_salida':'12:05', 'bus':maquina('17'), 'estado':'LISTA' },
 ]
 
 for p in posturas_data:

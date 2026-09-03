@@ -7,12 +7,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
-from operaciones.models import (
-    DOTACION_REQUERIDA, HORAS_CONDUCCION_AVISO, HORAS_CONDUCCION_MAX,
-)
+from operaciones.models import Parametros
 from operaciones.serializers import PersonaSerializer
 
 from .permissions import TienePersona, persona_de
+
+
+def _reglas():
+    """Las reglas vigentes, tal como las dejó Operaciones."""
+    p = Parametros.actual()
+    return {
+        'horas_conduccion_max': float(p.horas_conduccion_max),
+        'horas_conduccion_aviso': float(p.horas_conduccion_aviso),
+        'dotacion_requerida': p.dotacion,
+    }
 
 
 def _sesion(persona):
@@ -26,11 +34,7 @@ def _sesion(persona):
         # copiadas en el frontend. La pantalla de conductores tenía un
         # `HORAS_MAX = 9` escrito a mano que quedó desfasado el día que
         # Operaciones confirmó que el tope real son cinco horas.
-        'reglas': {
-            'horas_conduccion_max': HORAS_CONDUCCION_MAX,
-            'horas_conduccion_aviso': HORAS_CONDUCCION_AVISO,
-            'dotacion_requerida': DOTACION_REQUERIDA,
-        },
+        'reglas': _reglas(),
     }
 
 

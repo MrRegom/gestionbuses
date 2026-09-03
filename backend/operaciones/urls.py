@@ -3,7 +3,9 @@ from django.urls import path
 from .views import (
     TripulacionListView, ConductoresListView,
     PersonalCreateView, PersonalDetailView,
-    CiudadListCreateView, RutaListView, RutaCreateView, RutaDetailView,
+    CiudadListCreateView, CiudadDetailView,
+    RutaListView, RutaCreateView, RutaDetailView,
+    ParametrosView,
     PosturaListCreateView, PosturaDetailView,
     AsignarTripulacionView, DesasignarTripulacionView,
     PosturaBusView, PersonalDisponibleView,
@@ -21,7 +23,11 @@ urlpatterns = [
     path('ciudades/', CiudadListCreateView.as_view(), name='ciudad-list-create'),
     path('rutas/', RutaListView.as_view(), name='ruta-list'),
     path('rutas/crear/', RutaCreateView.as_view(), name='ruta-create'),
+    path('ciudades/<int:pk>/', CiudadDetailView.as_view(), name='ciudad-detail'),
     path('rutas/<int:pk>/', RutaDetailView.as_view(), name='ruta-detail'),
+
+    # Reglas del negocio, editables desde Configuración
+    path('parametros/', ParametrosView.as_view(), name='parametros'),
 
     # Posturas
     path('posturas/', PosturaListCreateView.as_view(), name='postura-list-create'),
