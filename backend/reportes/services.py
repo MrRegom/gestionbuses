@@ -162,13 +162,20 @@ def _alertas_operaciones(posturas_incompletas):
 
     for corrida in (Corrida.objects
                     .filter(estado=Corrida.Estado.ACTIVA)
-                    .select_related('bus_original', 'bus_sustituto')):
-        destino = (corrida.bus_sustituto.numero
-                   if corrida.bus_sustituto else 'sin reemplazo aún')
+                    .select_related('bus_original')
+                    .prefetch_related('movimientos__postura')):
+        # Lo accionable de una corrida abierta es el servicio que quedó
+        # esperando la máquina del pozo: mientras siga ahí, la cadena no
+        # se ha detenido.
+        espera = corrida.postura_en_espera
+        cuantos = corrida.movimientos.count()
+        detalle = (f'{cuantos} servicios corridos. '
+                   + (f'{espera.codigo} espera máquina.' if espera
+                      else 'Todos con máquina.'))
         alertas.append({
             'nivel': 'danger',
-            'titulo': f'Corrida activa · bus {corrida.bus_original.numero}',
-            'detalle': f'{corrida.motivo} — pasa a {destino}.',
+            'titulo': f'Corrida activa · cayó el bus {corrida.bus_original.numero}',
+            'detalle': detalle,
             'momento': corrida.creado_en,
             'ruta': '/corridas',
         })
@@ -432,7 +439,7 @@ def _ind_corridas(inicio, fin):
     return {
         'total': corridas.count(),
         'activas': corridas.filter(estado=Corrida.Estado.ACTIVA).count(),
-        'posturas_reasignadas': sum(c.posturas.count() for c in corridas),
+        'posturas_reasignadas': sum(c.movimientos.count() for c in corridas),
         'buses_reincidentes': [
             {'bus': fila['bus_original__numero'], 'veces': fila['n']}
             for fila in ranking

@@ -346,15 +346,32 @@ class CorridaTableroView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class SustitutosView(APIView):
-    """Buses capaces de cubrir todas las posturas indicadas."""
+class CadenaCorridaView(APIView):
+    """La cascada que habría que hacer para cubrir un servicio caído.
+
+    Reemplaza a la búsqueda de un bus de reserva: Operaciones no tiene
+    máquinas de sobra, adelanta la fila.
+    """
     permission_classes = [EscrituraPorRol]
     roles_permitidos = OPERACIONES
 
-    def get(self, request):
-        ids = [i for i in request.query_params.get('posturas', '').split(',') if i]
-        buses = CorridaService.sustitutos_posibles(ids)
-        return Response(BusSerializer(buses, many=True).data, status=status.HTTP_200_OK)
+    def get(self, request, pk):
+        try:
+            cadena = CorridaService.cadena_propuesta(pk)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response([
+            {
+                'orden': i,
+                'postura': PosturaResumenSerializer(paso['postura']).data,
+                'bus_saliente': (BusSerializer(paso['bus_saliente']).data
+                                 if paso['bus_saliente'] else None),
+                'bus_entrante': (BusSerializer(paso['bus_entrante']).data
+                                 if paso['bus_entrante'] else None),
+            }
+            for i, paso in enumerate(cadena)
+        ], status=status.HTTP_200_OK)
 
 
 class CorridaCreateView(APIView):
@@ -365,10 +382,10 @@ class CorridaCreateView(APIView):
         try:
             corrida = CorridaService.crear(
                 bus_original_id=request.data.get('bus_original_id'),
-                bus_sustituto_id=request.data.get('bus_sustituto_id'),
+                postura_id=request.data.get('postura_id'),
                 motivo=request.data.get('motivo', ''),
                 persona=persona_de(request),
-                postura_ids=request.data.get('postura_ids'),
+                hasta=request.data.get('hasta'),
             )
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -381,7 +398,7 @@ class CorridaCerrarView(APIView):
 
     def post(self, request, pk):
         try:
-            corrida = CorridaService.cerrar(pk)
+            corrida = CorridaService.cerrar(pk, request.data.get('bus_id'))
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(CorridaSerializer(corrida).data, status=status.HTTP_200_OK)

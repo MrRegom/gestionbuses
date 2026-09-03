@@ -505,32 +505,17 @@ def registrar_corridas(rng, posturas, hoy):
         if hechas >= 3:
             break
 
-        libres = list(
-            Bus.objects
-            .filter(estado=Bus.Estado.DISPONIBLE)
-            .exclude(id=postura.bus_id)
-        )
-        if not libres:
-            break
-
-        # No sirve cualquier bus libre: el servicio rechaza al que ya
-        # cubre otra postura solapada. Se prueban todos antes de dar por
-        # perdida la corrida, si no se descarta un caso por mala suerte.
-        corrida = None
-        for sustituto in rng.sample(libres, len(libres)):
-            try:
-                corrida = CorridaService.crear(
-                    bus_original_id=postura.bus_id,
-                    motivo=motivos[hechas % len(motivos)],
-                    persona=jefe,
-                    postura_ids=[postura.id],
-                    bus_sustituto_id=sustituto.id,
-                )
-                break
-            except ValueError:
-                continue
-
-        if corrida is None:
+        # La corrida corre la fila: no se elige un sustituto, el sistema
+        # calcula la cascada desde el servicio caído. Si no hay salidas
+        # posteriores desde ese origen, no hay cadena posible.
+        try:
+            corrida = CorridaService.crear(
+                bus_original_id=postura.bus_id,
+                postura_id=postura.id,
+                motivo=motivos[hechas % len(motivos)],
+                persona=jefe,
+            )
+        except (ValueError, IndexError):
             continue
 
         abierta = instante(postura.fecha, max(0, postura.hora_salida.hour - 2))
@@ -539,7 +524,13 @@ def registrar_corridas(rng, posturas, hoy):
         # Una corrida de hace tres semanas ya se resolvió. Dejar todas
         # abiertas pondría en el tablero de hoy avisos de agosto.
         if (hoy - postura.fecha).days > 1:
-            CorridaService.cerrar(corrida.id)
+            espera = corrida.postura_en_espera
+            libre = (Bus.objects.filter(estado=Bus.Estado.DISPONIBLE).first()
+                     if espera else None)
+            try:
+                CorridaService.cerrar(corrida.id, libre.id if libre else None)
+            except ValueError:
+                pass
             retrasar(Corrida, [corrida.id], abierta + timedelta(hours=6),
                      campos=('cerrado_en',))
 

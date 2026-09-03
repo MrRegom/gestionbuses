@@ -46,7 +46,9 @@ El sistema soporta los siguientes procesos clave basados en la operación real:
 
 ### 5. Operaciones y "Corridas"
 - **Monitoreo:** La Sala de Operaciones (Dashboard) monitorea las alertas.
-- **Gestión de Corridas:** Si un bus falla, Operaciones reasigna rápidamente los recursos en el sistema para evitar o gestionar la "corrida" (adelantar servicios con otros buses disponibles).
+- **Gestión de Corridas:** Una corrida es el **adelanto en cadena de las salidas** cuando una máquina se cae. Operaciones lo describió así: si el bus de las 10:00 no puede salir por mantención, el de las 11:00 cubre esa postura; entonces el de las 12:00 cubre la de las 11:00, y así se van corriendo todas las salidas posteriores, hasta que el bus que quedó en el pozo sale y ahí se detiene la corrida.
+
+> **No es un reemplazo por un bus de reserva.** La empresa no tiene máquinas de sobra —"la falta de máquinas para todas las posturas" es su principal problema— y por eso el mecanismo consiste en correr la fila. El sistema calcula la cascada y Operaciones decide hasta dónde se corre; el último servicio de la cadena queda esperando la máquina del pozo.
 
 ---
 

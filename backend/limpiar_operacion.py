@@ -68,10 +68,10 @@ def resumen():
 def limpiar():
     print('\nBorrando:')
 
-    # Las corridas van aparte: la tabla intermedia con posturas hay que
-    # vaciarla antes o el conteo que se imprime incluye esas filas.
+    # Las corridas van primero: sus movimientos apuntan a las posturas,
+    # y `postura_origen` las protege de borrarse mientras exista.
     for corrida in Corrida.objects.all():
-        corrida.posturas.clear()
+        corrida.movimientos.all().delete()
     print(f'  {Corrida.objects.all().delete()[0]:5}  Corridas')
 
     for nombre, modelo in A_BORRAR:

@@ -8,7 +8,8 @@ un dato suelto o entender por qué algo salió como salió.
 from django.contrib import admin
 
 from .models import (
-    AsignacionTripulacion, Ciudad, Corrida, Parametros, Persona, Postura, Ruta,
+    AsignacionTripulacion, Ciudad, Corrida, MovimientoCorrida, Parametros,
+    Persona, Postura, Ruta,
 )
 
 
@@ -47,11 +48,18 @@ class PosturaAdmin(admin.ModelAdmin):
     inlines = [TripulacionInline]
 
 
+class MovimientoInline(admin.TabularInline):
+    model = MovimientoCorrida
+    extra = 0
+    readonly_fields = ('orden',)
+
+
 @admin.register(Corrida)
 class CorridaAdmin(admin.ModelAdmin):
-    list_display = ('bus_original', 'bus_sustituto', 'estado', 'creado_en')
+    list_display = ('bus_original', 'postura_origen', 'estado',
+                    'bus_cierre', 'creado_en')
     list_filter = ('estado',)
-    filter_horizontal = ('posturas',)
+    inlines = [MovimientoInline]
 
 
 @admin.register(Parametros)

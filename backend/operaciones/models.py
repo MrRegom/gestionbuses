@@ -230,11 +230,18 @@ class AsignacionTripulacion(models.Model):
 
 
 class Corrida(models.Model):
-    """Reemplazo de máquina cuando un bus se cae (README §2.5).
+    """El adelanto en cadena de los servicios cuando un bus se cae.
 
-    Una corrida es el retraso en cadena que se produce si un bus falla y
-    nadie reasigna sus servicios. Registrarla deja constancia de qué bus
-    sustituyó a cuál, por qué, y qué posturas se traspasaron.
+    Operaciones lo describió así: si el bus de las 10:00 no puede salir
+    por mantención, el de las 11:00 cubre esa postura; entonces el de
+    las 12:00 cubre la de las 11:00, y así se van corriendo todas las
+    salidas posteriores, hasta que el bus que quedó en el pozo sale y
+    ahí se detiene la corrida.
+
+    Es importante que no sea un simple reemplazo por un bus libre: la
+    empresa no tiene máquinas de sobra —es su principal problema— y por
+    eso el mecanismo consiste en adelantar la fila, no en sacar un bus
+    de la reserva. Cada eslabón queda en `MovimientoCorrida`.
     """
 
     class Estado(models.TextChoices):
@@ -242,12 +249,13 @@ class Corrida(models.Model):
         CERRADA = 'CERRADA', 'Cerrada'
 
     bus_original = models.ForeignKey(
-        'flota.Bus', on_delete=models.PROTECT, related_name='corridas_como_original'
-    )
-    bus_sustituto = models.ForeignKey(
         'flota.Bus', on_delete=models.PROTECT,
-        null=True, blank=True, related_name='corridas_como_sustituto',
-        help_text='Nulo si aún no se consigue reemplazo',
+        related_name='corridas_como_original',
+        help_text='La máquina que se cayó y disparó la cadena',
+    )
+    postura_origen = models.ForeignKey(
+        Postura, on_delete=models.PROTECT, related_name='corridas_originadas',
+        help_text='El servicio que quedó sin máquina',
     )
     motivo = models.TextField()
     estado = models.CharField(
@@ -256,9 +264,11 @@ class Corrida(models.Model):
     creado_por = models.ForeignKey(
         Persona, on_delete=models.PROTECT, related_name='corridas'
     )
-    # Las posturas que se traspasaron del bus original al sustituto.
-    posturas = models.ManyToManyField(
-        Postura, related_name='corridas', blank=True
+    # Con qué máquina se cerró la cadena. Normalmente es la que salió
+    # del pozo; puede ser otra si Operaciones consiguió una antes.
+    bus_cierre = models.ForeignKey(
+        'flota.Bus', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='corridas_que_cerro',
     )
     creado_en = models.DateTimeField(auto_now_add=True)
     cerrado_en = models.DateTimeField(null=True, blank=True)
@@ -269,5 +279,54 @@ class Corrida(models.Model):
         ordering = ['-creado_en']
 
     def __str__(self):
-        destino = self.bus_sustituto.numero if self.bus_sustituto else 'sin reemplazo'
-        return f'{self.bus_original.numero} → {destino}'
+        return (f'Corrida por {self.bus_original.numero} '
+                f'({self.movimientos.count()} servicios corridos)')
+
+    @property
+    def postura_en_espera(self):
+        """El último servicio de la cadena: el que quedó sin máquina.
+
+        Es el que espera al bus del pozo. Mientras exista, la corrida
+        sigue abierta.
+        """
+        ultimo = self.movimientos.filter(bus_entrante__isnull=True).first()
+        return ultimo.postura if ultimo else None
+
+
+class MovimientoCorrida(models.Model):
+    """Un eslabón: un servicio que cambia de máquina dentro de la cadena.
+
+    `bus_entrante` en nulo significa que ese servicio quedó esperando —es
+    el final de la cadena, el que toma el bus cuando sale del pozo—.
+    """
+
+    corrida = models.ForeignKey(
+        Corrida, on_delete=models.CASCADE, related_name='movimientos'
+    )
+    orden = models.PositiveSmallIntegerField(
+        help_text='Posición en la cadena, empezando por el servicio caído'
+    )
+    postura = models.ForeignKey(
+        Postura, on_delete=models.CASCADE, related_name='movimientos_corrida'
+    )
+    bus_saliente = models.ForeignKey(
+        'flota.Bus', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='movimientos_como_saliente',
+        help_text='La máquina que tenía este servicio antes',
+    )
+    bus_entrante = models.ForeignKey(
+        'flota.Bus', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='movimientos_como_entrante',
+        help_text='La que lo cubre ahora. Nulo: queda esperando.',
+    )
+
+    class Meta:
+        verbose_name = 'Movimiento de corrida'
+        verbose_name_plural = 'Movimientos de corrida'
+        ordering = ['corrida', 'orden']
+        unique_together = ('corrida', 'postura')
+
+    def __str__(self):
+        entra = self.bus_entrante.numero if self.bus_entrante else 'en espera'
+        return f'{self.postura.codigo}: {entra}'
+

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Persona, Ciudad, Ruta, Postura, AsignacionTripulacion, Corrida,
-    Parametros,
+    MovimientoCorrida, Parametros,
 )
 from flota.serializers import BusSerializer
 
@@ -66,18 +66,38 @@ class PosturaResumenSerializer(serializers.ModelSerializer):
         fields = ['id', 'codigo', 'ruta', 'fecha', 'hora_salida', 'estado', 'bus']
 
 
+class MovimientoCorridaSerializer(serializers.ModelSerializer):
+    """Un eslabón de la cadena: qué servicio pasa de qué bus a cuál."""
+    postura = PosturaResumenSerializer(read_only=True)
+    bus_saliente = BusSerializer(read_only=True)
+    bus_entrante = BusSerializer(read_only=True)
+
+    class Meta:
+        model = MovimientoCorrida
+        fields = ['id', 'orden', 'postura', 'bus_saliente', 'bus_entrante']
+
+
 class CorridaSerializer(serializers.ModelSerializer):
     bus_original = BusSerializer(read_only=True)
-    bus_sustituto = BusSerializer(read_only=True)
+    bus_cierre = BusSerializer(read_only=True)
+    postura_origen = PosturaResumenSerializer(read_only=True)
     creado_por = PersonaSerializer(read_only=True)
-    posturas = PosturaResumenSerializer(many=True, read_only=True)
+    movimientos = MovimientoCorridaSerializer(many=True, read_only=True)
+    # El servicio que quedó esperando la máquina del pozo. Es lo que
+    # hay que resolver para cerrar la corrida.
+    postura_en_espera = serializers.SerializerMethodField()
 
     class Meta:
         model = Corrida
         fields = [
-            'id', 'bus_original', 'bus_sustituto', 'motivo', 'estado',
-            'creado_por', 'posturas', 'creado_en', 'cerrado_en',
+            'id', 'bus_original', 'postura_origen', 'motivo', 'estado',
+            'creado_por', 'movimientos', 'postura_en_espera', 'bus_cierre',
+            'creado_en', 'cerrado_en',
         ]
+
+    def get_postura_en_espera(self, obj):
+        p = obj.postura_en_espera
+        return PosturaResumenSerializer(p).data if p else None
 
 
 class ParametrosSerializer(serializers.ModelSerializer):

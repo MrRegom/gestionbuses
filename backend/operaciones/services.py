@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from .repositories import PersonaRepository
 from .models import (
-    Ciudad, Corrida, Parametros, Persona, Postura, AsignacionTripulacion,
+    Ciudad, Corrida, MovimientoCorrida, Parametros, Persona, Postura,
+    AsignacionTripulacion,
     dotacion_requerida,
 )
 
@@ -516,8 +517,10 @@ class CorridaService:
     def get_todas():
         return (
             Corrida.objects
-            .select_related('bus_original', 'bus_sustituto', 'creado_por')
-            .prefetch_related('posturas__ruta__origen', 'posturas__ruta__destino')
+            .select_related('bus_original', 'bus_cierre', 'creado_por')
+            .prefetch_related('movimientos__postura__ruta',
+                              'movimientos__bus_saliente',
+                              'movimientos__bus_entrante')
         )
 
     @staticmethod
@@ -548,46 +551,72 @@ class CorridaService:
         return resultado
 
     @staticmethod
-    def sustitutos_posibles(postura_ids):
-        """Buses que podrían cubrir TODAS las posturas indicadas.
+    def cadena_propuesta(postura_id, limite=8):
+        """La cascada que hay que hacer para cubrir un servicio caído.
 
-        Un candidato sirve solo si está operativo y ninguna de las
-        posturas se le pisa con lo que ya tiene asignado.
+        Es el mecanismo real que describió Operaciones: el servicio que
+        se cayó lo toma la máquina del siguiente, ese siguiente lo toma
+        la del que viene después, y así se van corriendo las salidas.
+
+        No se busca un bus de reserva. La empresa no las tiene —"falta
+        de máquinas para todas las posturas" es su mayor problema— y por
+        eso el procedimiento consiste en adelantar la fila.
+
+        Solo entran servicios que salen del mismo lugar y después de la
+        hora del caído: una máquina que está en Santiago no puede cubrir
+        algo que sale de Antofagasta.
+
+        El último de la lista queda sin máquina: es el que espera al bus
+        que está en el pozo, y por eso la corrida sigue abierta hasta
+        que ese bus sale.
         """
-        from flota.models import Bus
+        from .repositories import PosturaRepository
 
-        posturas = list(
-            Postura.objects.filter(id__in=postura_ids).select_related('ruta')
+        caida = PosturaRepository.get_postura_by_id(postura_id)
+        if not caida:
+            raise ValueError('Postura no encontrada')
+
+        posteriores = list(
+            Postura.objects
+            .filter(fecha=caida.fecha,
+                    ruta__origen=caida.ruta.origen,
+                    hora_salida__gt=caida.hora_salida,
+                    bus__isnull=False)
+            .exclude(id=caida.id)
+            .exclude(estado=Postura.Estado.COMPLETA)
+            .select_related('ruta', 'ruta__origen', 'ruta__destino', 'bus')
+            .order_by('hora_salida')[:limite]
         )
-        if not posturas:
-            return []
 
-        candidatos = Bus.objects.filter(estado=Bus.Estado.DISPONIBLE).order_by('numero')
-        excluir = {p.id for p in posturas}
+        cadena = [{
+            'postura': caida,
+            'bus_saliente': caida.bus,
+            'bus_entrante': posteriores[0].bus if posteriores else None,
+        }]
+        for actual, siguiente in zip(posteriores, posteriores[1:] + [None]):
+            cadena.append({
+                'postura': actual,
+                'bus_saliente': actual.bus,
+                'bus_entrante': siguiente.bus if siguiente else None,
+            })
 
-        libres = []
-        for bus in candidatos:
-            ocupadas = list(
-                Postura.objects
-                .filter(bus=bus)
-                .exclude(id__in=excluir)
-                .select_related('ruta')
-            )
-            if any(_se_solapan(p, o) for p in posturas for o in ocupadas):
-                continue
-            libres.append(bus)
-        return libres
+        return cadena
 
     @staticmethod
     @transaction.atomic
-    def crear(bus_original_id, motivo, persona, postura_ids, bus_sustituto_id=None):
-        """Registra la corrida y traspasa los servicios al bus sustituto.
+    def crear(bus_original_id, motivo, persona, postura_id, hasta=None):
+        """Aplica la cascada y la deja registrada.
 
-        Va en una transacción: o se reasignan todas las posturas y queda
-        el registro, o no se mueve nada. Una reasignación a medias
-        dejaría servicios sin máquina y sin rastro de por qué.
+        `hasta` acota cuántos servicios se corren. Operaciones no siempre
+        arrastra la fila entera: corre los necesarios y el resto espera a
+        que salga la máquina del pozo.
+
+        Va en una transacción: o se mueven todas las máquinas de la
+        cadena y queda el registro, o no se mueve ninguna. Una cascada a
+        medias deja servicios sin bus y sin rastro de por qué.
         """
         from flota.models import Bus
+        from core.services import avisar_corrida
 
         if not motivo or not motivo.strip():
             raise ValueError('Indica el motivo de la corrida.')
@@ -597,71 +626,61 @@ class CorridaService:
         except Bus.DoesNotExist:
             raise ValueError('Bus original no encontrado')
 
-        posturas = list(
-            Postura.objects.filter(id__in=postura_ids or []).select_related('ruta')
-        )
-        if not posturas:
-            raise ValueError('Selecciona al menos una postura afectada.')
+        cadena = CorridaService.cadena_propuesta(postura_id)
 
-        sustituto = None
-        if bus_sustituto_id:
-            try:
-                sustituto = Bus.objects.get(id=bus_sustituto_id)
-            except Bus.DoesNotExist:
-                raise ValueError('Bus sustituto no encontrado')
-
-            if sustituto.id == bus_original.id:
-                raise ValueError('El bus sustituto no puede ser el mismo que falló.')
-
-            if sustituto.estado != Bus.Estado.DISPONIBLE:
-                raise ValueError(
-                    f'{sustituto.numero} no está disponible '
-                    f'({sustituto.get_estado_display()}).'
-                )
-
-            # Ninguna de las posturas puede pisarse con lo que el
-            # sustituto ya tiene comprometido.
-            ocupadas = list(
-                Postura.objects
-                .filter(bus=sustituto)
-                .exclude(id__in=[p.id for p in posturas])
-                .select_related('ruta')
+        if cadena[0]['postura'].bus_id != bus_original.id:
+            raise ValueError(
+                'La postura %s no la cubre %s.'
+                % (cadena[0]['postura'].codigo, bus_original.numero)
             )
-            for p in posturas:
-                choque = next((o for o in ocupadas if _se_solapan(p, o)), None)
-                if choque:
-                    raise ValueError(
-                        f'{sustituto.numero} ya cubre la postura {choque.codigo}, '
-                        f'que se solapa con {p.codigo}.'
-                    )
+
+        if hasta is not None:
+            cadena = cadena[:max(1, int(hasta))]
+            # Al acotar, el último de los que quedan pierde su relevo:
+            # ese es el servicio que espera la máquina del pozo.
+            cadena[-1] = dict(cadena[-1], bus_entrante=None)
 
         corrida = Corrida.objects.create(
             bus_original=bus_original,
-            bus_sustituto=sustituto,
+            postura_origen=cadena[0]['postura'],
             motivo=motivo.strip(),
             creado_por=persona,
         )
-        corrida.posturas.set(posturas)
 
-        from core.services import avisar_corrida
+        for orden, paso in enumerate(cadena):
+            postura = paso['postura']
+            entrante = paso['bus_entrante']
 
-        for p in posturas:
-            p.bus = sustituto
-            # Con máquina asignada el servicio deja de estar en problema;
-            # sin sustituto queda marcado para que Operaciones lo vea.
-            p.estado = Postura.Estado.LISTA if sustituto else Postura.Estado.PROBLEMA
-            p.save(update_fields=['bus', 'estado'])
+            MovimientoCorrida.objects.create(
+                corrida=corrida, orden=orden, postura=postura,
+                bus_saliente=paso['bus_saliente'], bus_entrante=entrante,
+            )
+
+            postura.bus = entrante
+            # Sin máquina el servicio queda marcado para que Operaciones
+            # lo vea; con máquina vuelve a estar listo.
+            postura.estado = (Postura.Estado.LISTA if entrante
+                              else Postura.Estado.PROBLEMA)
+            postura.save(update_fields=['bus', 'estado'])
 
             # La tripulación tiene que enterarse antes de presentarse al
-            # andén: el bus con el que iban ya no es el que sale.
-            avisar_corrida(p, bus_original, sustituto)
+            # andén: la máquina con la que iban ya no es la que sale.
+            if paso['bus_saliente'] and entrante:
+                avisar_corrida(postura, paso['bus_saliente'], entrante)
 
         return corrida
 
     @staticmethod
     @transaction.atomic
-    def cerrar(corrida_id: int):
+    def cerrar(corrida_id: int, bus_id=None):
+        """Cierra la cadena poniéndole máquina al servicio que esperaba.
+
+        Es el momento que describió Operaciones: sale el bus del pozo,
+        toma el servicio que quedó descubierto y la corrida se detiene.
+        """
         from django.utils import timezone
+        from flota.models import Bus
+        from core.services import avisar_cambio_bus
 
         try:
             corrida = Corrida.objects.get(id=corrida_id)
@@ -671,13 +690,49 @@ class CorridaService:
         if corrida.estado == Corrida.Estado.CERRADA:
             raise ValueError('La corrida ya está cerrada.')
 
-        if not corrida.bus_sustituto:
-            raise ValueError(
-                'No se puede cerrar una corrida sin bus sustituto: '
-                'los servicios siguen sin máquina.'
+        pendiente = corrida.movimientos.filter(bus_entrante__isnull=True).first()
+
+        if pendiente:
+            if not bus_id:
+                raise ValueError(
+                    'La postura %s sigue sin máquina. Indica con cuál se '
+                    'cubre para cerrar la corrida.' % pendiente.postura.codigo
+                )
+            try:
+                bus = Bus.objects.get(id=bus_id)
+            except Bus.DoesNotExist:
+                raise ValueError('Bus no encontrado')
+
+            if bus.estado in (Bus.Estado.MANTENIMIENTO, Bus.Estado.FUERA_SERVICIO):
+                raise ValueError(
+                    '%s sigue en %s: libéralo en el taller antes de cerrar '
+                    'la corrida.' % (bus.numero, bus.get_estado_display())
+                )
+
+            postura = pendiente.postura
+            choque = next(
+                (o for o in Postura.objects
+                 .filter(bus=bus).exclude(id=postura.id).select_related('ruta')
+                 if _se_solapan(postura, o)),
+                None,
             )
+            if choque:
+                raise ValueError(
+                    '%s ya cubre %s, que se solapa con %s.'
+                    % (bus.numero, choque.codigo, postura.codigo)
+                )
+
+            pendiente.bus_entrante = bus
+            pendiente.save(update_fields=['bus_entrante'])
+
+            postura.bus = bus
+            postura.estado = Postura.Estado.LISTA
+            postura.save(update_fields=['bus', 'estado'])
+            avisar_cambio_bus(postura, bus)
+
+            corrida.bus_cierre = bus
 
         corrida.estado = Corrida.Estado.CERRADA
         corrida.cerrado_en = timezone.now()
-        corrida.save(update_fields=['estado', 'cerrado_en'])
+        corrida.save(update_fields=['estado', 'cerrado_en', 'bus_cierre'])
         return corrida

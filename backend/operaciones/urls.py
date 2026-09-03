@@ -9,7 +9,7 @@ from .views import (
     PosturaListCreateView, PosturaDetailView,
     AsignarTripulacionView, DesasignarTripulacionView,
     PosturaBusView, PersonalDisponibleView,
-    CorridaTableroView, SustitutosView, CorridaCreateView, CorridaCerrarView,
+    CorridaTableroView, CadenaCorridaView, CorridaCreateView, CorridaCerrarView,
 )
 
 urlpatterns = [
@@ -39,7 +39,7 @@ urlpatterns = [
 
     # Corridas
     path('corridas/tablero/', CorridaTableroView.as_view(), name='corrida-tablero'),
-    path('corridas/sustitutos/', SustitutosView.as_view(), name='corrida-sustitutos'),
+    path('corridas/cadena/<int:pk>/', CadenaCorridaView.as_view(), name='corrida-cadena'),
     path('corridas/', CorridaCreateView.as_view(), name='corrida-create'),
     path('corridas/<int:pk>/cerrar/', CorridaCerrarView.as_view(), name='corrida-cerrar'),
 
