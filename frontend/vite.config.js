@@ -7,6 +7,24 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // El registro lo hace main.jsx: además de registrar, vuelve a
+      // buscar versión cuando la pestaña recupera el foco. El script
+      // que inyecta el plugin solo mira al cargar la página, y con eso
+      // un usuario con la app abierta se queda en la versión vieja.
+      injectRegister: null,
+      workbox: {
+        // Un despliegue nuevo tiene que llegar solo. Sin esto el
+        // service worker sirve el bundle anterior hasta que alguien
+        // limpia la caché a mano, y entonces el frontend viejo habla
+        // con el backend nuevo: fue exactamente lo que dejó al
+        // administrador sin menú, porque el bundle anterior no conocía
+        // el rol ADMIN y lo filtraba de todas las pantallas.
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
+        // La API nunca se cachea: son datos de operación en vivo.
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin\//],
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'PlussChile SGO',
