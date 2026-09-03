@@ -222,7 +222,7 @@ function PanelPostura({ postura, buses, onCerrar, onCambio }) {
                 <div style={{ minWidth: 0 }}>
                   <div className="fw-600 fs-13 truncate">{persona.nombre}</div>
                   <div className="fs-12 text-muted">
-                    {persona.rol} · {parseFloat(persona.horas_hoy)}h hoy
+                    {persona.rol} · {persona.tipo}
                   </div>
                 </div>
                 <button

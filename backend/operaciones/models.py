@@ -22,11 +22,6 @@ class Persona(models.Model):
         TITULAR = 'TITULAR', 'Titular'
         RELEVO = 'RELEVO', 'Relevo'
 
-    class Semaforo(models.TextChoices):
-        VERDE = 'verde', 'Verde'
-        AMARILLO = 'amarillo', 'Amarillo'
-        ROJO = 'rojo', 'Rojo'
-
     # Vincula la persona del dominio con su cuenta de acceso. Nulo
     # mientras alguien no tenga login (ej. un asistente sin celular).
     usuario = models.OneToOneField(
@@ -37,9 +32,6 @@ class Persona(models.Model):
     nombre = models.CharField(max_length=150)
     rol = models.CharField(max_length=20, choices=Rol.choices, default=Rol.CONDUCTOR)
     tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.TITULAR)
-    horas_hoy = models.DecimalField(max_digits=4, decimal_places=1, default=0)
-    semaforo = models.CharField(max_length=15, choices=Semaforo.choices, default=Semaforo.VERDE)
-    razon_bloqueo = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         verbose_name = 'Persona'
@@ -56,8 +48,6 @@ class Persona(models.Model):
 # desde la pantalla de Configuración: estas cifras solo sirven para
 # arrancar una base vacía.
 DOTACION_INICIAL = {'CONDUCTOR': 2, 'ASISTENTE': 1}
-HORAS_CONDUCCION_MAX_INICIAL = 5.0
-HORAS_CONDUCCION_AVISO_INICIAL = 4.0
 
 
 class Parametros(models.Model):
@@ -79,16 +69,6 @@ class Parametros(models.Model):
         default=DOTACION_INICIAL['ASISTENTE'],
         help_text='Cuántos asistentes lleva cada servicio',
     )
-    horas_conduccion_max = models.DecimalField(
-        max_digits=4, decimal_places=1,
-        default=HORAS_CONDUCCION_MAX_INICIAL,
-        help_text='Máximo de horas continuas al volante',
-    )
-    horas_conduccion_aviso = models.DecimalField(
-        max_digits=4, decimal_places=1,
-        default=HORAS_CONDUCCION_AVISO_INICIAL,
-        help_text='A partir de cuántas horas se avisa (semáforo amarillo)',
-    )
     actualizado_en = models.DateTimeField(auto_now=True)
     actualizado_por = models.ForeignKey(
         'Persona', on_delete=models.SET_NULL, null=True, blank=True,
@@ -100,8 +80,8 @@ class Parametros(models.Model):
         verbose_name_plural = 'Parámetros del sistema'
 
     def __str__(self):
-        return (f'{self.conductores_por_servicio}C+{self.asistentes_por_servicio}A, '
-                f'max {self.horas_conduccion_max} h')
+        return (f'{self.conductores_por_servicio} conductores + '
+                f'{self.asistentes_por_servicio} asistentes')
 
     def save(self, *args, **kwargs):
         # Fila única: cualquier guardado escribe sobre la misma.
@@ -146,22 +126,15 @@ def dotacion_requerida():
     """
     return Parametros.actual().dotacion
 
-# Límite de conducción confirmado con Operaciones: cinco horas
-# continuas al volante como máximo.
+# Por qué son dos conductores: Operaciones confirmó que el máximo son
+# cinco horas continuas al volante, y los viajes duran más —el de Arica,
+# treinta y dos—. A mitad de camino tienen que relevarse. No van dos por
+# comodidad: con uno solo el servicio no se puede hacer.
 #
-# Es la razón mecánica de la dotación de arriba. Las rutas al sur duran
-# entre cinco y siete horas y media, o sea más que el límite, así que a
-# mitad de camino los dos conductores tienen que relevarse. No son dos
-# por comodidad: con uno solo el servicio no se puede hacer legalmente.
-#
-# El aviso se levanta antes del tope para que Operaciones alcance a
-# mover a alguien, no cuando ya es tarde.
-def horas_conduccion():
-    """(máximo, aviso) en horas, según la configuración vigente."""
-    p = Parametros.actual()
-    return float(p.horas_conduccion_max), float(p.horas_conduccion_aviso)
-
-
+# El sistema no lleva la cuenta de esas horas. Se evaluó y Operaciones
+# decidió que los conductores no van a marcar cuándo toman y entregan el
+# volante, así que un contador aquí sería un número que nadie alimenta.
+# Lo que sí se hace cumplir es la dotación de arriba.
 class Ciudad(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
 

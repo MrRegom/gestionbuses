@@ -6,33 +6,8 @@ from django.utils import timezone
 from .repositories import PersonaRepository
 from .models import (
     Ciudad, Corrida, Parametros, Persona, Postura, AsignacionTripulacion,
-    dotacion_requerida, horas_conduccion,
+    dotacion_requerida,
 )
-
-def semaforo_por_horas(horas):
-    """Traduce horas al volante en color de semáforo y su motivo.
-
-    El tope lo fija Operaciones desde Configuración; hoy son cinco horas
-    continuas. Antes estaba escrito en el código en ocho y seis, cifras
-    que no venían de nadie.
-
-    Vive aquí y no dentro del servicio para que la semilla y cualquier
-    otro punto usen exactamente el mismo criterio.
-    """
-    horas = float(horas)
-    maximo, aviso = horas_conduccion()
-
-    if horas >= maximo:
-        return (Persona.Semaforo.ROJO,
-                f'Alcanzó el máximo de {maximo:g} h continuas de conducción.')
-
-    if horas >= aviso:
-        return (Persona.Semaforo.AMARILLO,
-                f'Le quedan {maximo - horas:g} h antes del máximo de '
-                f'{maximo:g} h continuas.')
-
-    return Persona.Semaforo.VERDE, None
-
 
 class TripulacionService:
     @staticmethod
@@ -43,20 +18,6 @@ class TripulacionService:
     def get_conductores():
         return PersonaRepository.get_conductores()
 
-    @staticmethod
-    def registrar_horas(persona_id: int, horas_agregadas: float):
-        persona = PersonaRepository.get_persona_by_id(persona_id)
-        if not persona:
-            raise ValueError("Persona no encontrada")
-        
-        nuevas_horas = float(persona.horas_hoy) + horas_agregadas
-        estado_semaforo, razon = semaforo_por_horas(nuevas_horas)
-
-        return PersonaRepository.update_persona(persona, {
-            'horas_hoy': nuevas_horas,
-            'semaforo': estado_semaforo,
-            'razon_bloqueo': razon
-        })
 
 def _ventana(postura):
     """Rango horario que ocupa una postura: salida + duración de la ruta."""
@@ -152,9 +113,6 @@ class PlanificacionService:
 
         if not postura or not persona:
             raise ValueError("Postura o Persona no encontrada")
-
-        if persona.semaforo == Persona.Semaforo.ROJO:
-            raise ValueError(f"No se puede asignar a {persona.nombre} porque está bloqueado (Semaforo Rojo).")
 
         # Solo tripulación viaja: un mecánico o el jefe de operaciones no
         # forman parte de la dotación de un servicio.
@@ -322,8 +280,6 @@ class PlanificacionService:
         for p in tripulacion:
             if p.id in ya_en_postura:
                 motivo = 'Ya asignado a esta postura'
-            elif p.semaforo == Persona.Semaforo.ROJO:
-                motivo = p.razon_bloqueo or 'Bloqueado por fatiga'
             elif p.id in ocupados:
                 motivo = f'Viaja en {ocupados[p.id]} a esa hora'
             else:
@@ -381,17 +337,10 @@ class PlanificacionService:
         )
         propias = {p.id for p in suyas}
 
-        bloqueado = (
-            persona.razon_bloqueo or 'Bloqueado por control de fatiga'
-            if persona.semaforo == Persona.Semaforo.ROJO else None
-        )
-
         resultado = []
         for postura in candidatas:
             if postura.id in propias:
                 motivo = 'Ya va en este servicio'
-            elif bloqueado:
-                motivo = bloqueado
             elif not postura.faltantes().get(persona.rol, 0):
                 cargo = 'conductores' if persona.rol == Persona.Rol.CONDUCTOR                     else 'asistentes'
                 motivo = f'Ya tiene todos sus {cargo}'
@@ -545,60 +494,18 @@ class ParametrosService:
                                    p.conductores_por_servicio))
         asistentes = int(data.get('asistentes_por_servicio',
                                   p.asistentes_por_servicio))
-        maximo = float(data.get('horas_conduccion_max', p.horas_conduccion_max))
-        aviso = float(data.get('horas_conduccion_aviso', p.horas_conduccion_aviso))
-
         # Un servicio sin conductor no es un servicio.
         if conductores < 1:
             raise ValueError('Cada servicio necesita al menos un conductor.')
         if asistentes < 0:
             raise ValueError('Los asistentes no pueden ser un número negativo.')
-        if maximo <= 0:
-            raise ValueError('El máximo de horas tiene que ser mayor que cero.')
-        # Avisar después del tope no avisa nada.
-        if aviso >= maximo:
-            raise ValueError(
-                'El aviso tiene que ser menor que el máximo: si no, salta '
-                'cuando ya se pasó el límite.'
-            )
 
         p.conductores_por_servicio = conductores
         p.asistentes_por_servicio = asistentes
-        p.horas_conduccion_max = maximo
-        p.horas_conduccion_aviso = aviso
         p.actualizado_por = persona
         p.save()
-
-        ParametrosService._recalcular_semaforos()
         return p
 
-    @staticmethod
-    def _recalcular_semaforos():
-        """Reevalúa a toda la tripulación con el tope recién guardado.
-
-        El semáforo es una foto: se calcula al registrar horas y queda
-        grabado. Si Operaciones baja el máximo de seis a cinco, quien
-        llevaba cinco horas y media pasó a estar sobre el límite, pero su
-        fila seguiría diciendo verde hasta la próxima vez que alguien le
-        sumara horas. Bajar el tope y que nadie se bloquee es peor que no
-        poder bajarlo.
-        """
-        from .models import Persona
-
-        pendientes = []
-        for p in Persona.objects.filter(
-            rol__in=[Persona.Rol.CONDUCTOR, Persona.Rol.ASISTENTE]
-        ):
-            color, razon = semaforo_por_horas(p.horas_hoy)
-            if p.semaforo != color or p.razon_bloqueo != razon:
-                p.semaforo = color
-                p.razon_bloqueo = razon
-                pendientes.append(p)
-
-        if pendientes:
-            Persona.objects.bulk_update(
-                pendientes, ['semaforo', 'razon_bloqueo'])
-        return len(pendientes)
 
 
 class CorridaService:

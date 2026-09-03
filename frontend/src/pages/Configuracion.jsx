@@ -12,10 +12,9 @@ import {
  * Configuración del sistema.
  *
  * Todo lo que aquí se edita vivía antes escrito en el código: la
- * dotación de cada servicio, el tope de horas al volante, las rutas con
- * su duración y los ítems del checklist. Cambiar cualquiera de esas
- * cosas exigía un programador y un despliegue, y ninguna es una
- * decisión de ingeniería.
+ * dotación de cada servicio, las rutas con su duración y los ítems del
+ * checklist. Cambiar cualquiera de esas cosas exigía un programador y
+ * un despliegue, y ninguna es una decisión de ingeniería.
  */
 const TABS = [
   { id: 'parametros', label: 'Reglas', Icon: SlidersHorizontal },
@@ -60,7 +59,7 @@ export default function Configuracion() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   REGLAS · dotación y tope de horas
+   REGLAS · dotación de cada servicio
    ═══════════════════════════════════════════════════════════ */
 function PanelReglas() {
   const { recargar } = useAuth();
@@ -136,39 +135,13 @@ function PanelReglas() {
             Cada servicio va con <strong>{total}</strong>{' '}
             {total === 1 ? 'persona' : 'personas'} a bordo.
           </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">Control de fatiga</span>
-        </div>
-        <div className="card-body">
-          <p className="empty-sub mb-4">
-            El máximo de horas continuas al volante. Al alcanzarlo, el
-            conductor queda en rojo y el sistema no lo deja tomar servicio;
-            el aviso lo pone en amarillo antes, para alcanzar a mover a
-            alguien.
-          </p>
-          <div className="grid-2">
-            <Campo
-              label="Máximo de horas continuas" id="cfg-max"
-              valor={form.horas_conduccion_max} paso="0.5" min={0.5}
-              onChange={v => setForm({ ...form, horas_conduccion_max: v })}
-            />
-            <Campo
-              label="Avisar a partir de" id="cfg-aviso"
-              valor={form.horas_conduccion_aviso} paso="0.5" min={0}
-              onChange={v => setForm({ ...form, horas_conduccion_aviso: v })}
-            />
-          </div>
           <div className="notice info mt-4">
             <span className="notice-icon"><Info size={16} /></span>
             <div className="notice-content">
               <div className="notice-desc">
-                Un viaje más largo que este tope obliga a que los conductores
-                se releven: por eso van más de uno. Si cambias el tope,
-                revisa también la dotación.
+                Van dos conductores porque el máximo son cinco horas
+                continuas al volante y los viajes largos duran más: a
+                mitad de camino tienen que relevarse.
               </div>
             </div>
           </div>

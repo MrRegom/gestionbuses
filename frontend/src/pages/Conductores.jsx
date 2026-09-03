@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../api';
 import DialogoForm, { mensajeError } from '../components/DialogoForm';
-import { useReglas } from '../context/AuthContext';
 import {
-  Users, Plus, CheckCircle2, AlertTriangle, XCircle,
+  Users, Plus, CheckCircle2,
   Search, ArrowRight, MapPin, Clock, Bus as BusIcon,
   X, Calendar, AlertCircle, RefreshCw, Edit, Trash2,
 } from 'lucide-react';
@@ -17,15 +16,6 @@ const getInitials = n => n.split(' ').map(x => x[0]).join('').slice(0, 2).toUppe
 const AVATAR_TONES = ['var(--n-90)', 'var(--n-100)', 'var(--n-110)', 'var(--n-80)'];
 const avatarTone = id => AVATAR_TONES[id % AVATAR_TONES.length];
 
-
-const semaforoInfo = semaforo => {
-  switch (semaforo) {
-    case 'verde':    return { cls: 'ok',      icon: <CheckCircle2  size={13} />, text: 'Disponible'  };
-    case 'amarillo': return { cls: 'warn',    icon: <AlertTriangle size={13} />, text: 'Advertencia' };
-    case 'rojo':     return { cls: 'danger',  icon: <XCircle       size={13} />, text: 'Bloqueado'   };
-    default:         return { cls: 'neutral', icon: null,                        text: semaforo      };
-  }
-};
 
 const ESTADO_BADGE = { LISTA: 'ok', EN_CURSO: 'info', COMPLETA: 'ok', ALERTA: 'warn', PROBLEMA: 'danger' };
 const estadoBadge = e => <span className={`badge ${ESTADO_BADGE[e] ?? 'neutral'}`}>{e}</span>;
@@ -82,10 +72,6 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
     setSaving(false);
   };
 
-  const { horas_conduccion_max: horasMax } = useReglas();
-  const sInfo = semaforoInfo(persona.semaforo);
-  const horas = parseFloat(persona.horas_hoy);
-  const pctHoras = Math.min(100, (horas / horasMax) * 100);
 
   return (
     <aside className="slide-panel open" aria-label={`Ficha de ${persona.nombre}`}>
@@ -127,25 +113,6 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
         {/* ── FICHA ── */}
         {tab === 'info' && (
           <>
-            <div className="grid-2 gap-3 mb-4">
-              <div className="stat-box">
-                <div className="stat-box-label">Estado</div>
-                <span className={`badge ${sInfo.cls}`}>{sInfo.icon} {sInfo.text}</span>
-              </div>
-              <div className="stat-box">
-                <div className="stat-box-label">Horas al volante</div>
-                <div className="stat-box-value">
-                  {horas}h <span className="fs-12 fw-400 text-muted">/ {horasMax}h</span>
-                </div>
-                <div className="progress-track mt-2">
-                  <div
-                    className={`progress-fill ${sInfo.cls === 'neutral' ? 'ok' : sInfo.cls}`}
-                    style={{ width: `${pctHoras}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
             <div className="mb-4">
               <div className="section-label">Datos del conductor</div>
               <div className="data-list">
@@ -157,15 +124,6 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                 ))}
               </div>
             </div>
-
-            {persona.razon_bloqueo && (
-              <div className="info-box danger mb-4">
-                <div className="flex items-center gap-2 fw-600 mb-1" style={{ color: 'var(--danger-text)' }}>
-                  <AlertTriangle size={14} /> Motivo de bloqueo
-                </div>
-                <p className="fs-13" style={{ color: 'var(--danger-text)' }}>{persona.razon_bloqueo}</p>
-              </div>
-            )}
 
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -440,8 +398,11 @@ export default function Conductores() {
     p.rut.includes(busqueda)
   );
 
-  const disponibles = personas.filter(p => p.semaforo === 'verde').length;
-  const enRiesgo    = personas.filter(p => p.semaforo !== 'verde').length;
+  // Antes estos dos contaban semáforos de fatiga. Ese control salió de
+  // la aplicación —nadie alimentaba las horas—, así que el encabezado
+  // cuenta lo que sí se sabe: cuánta gente hay de cada cargo.
+  const conduccion = personas.filter(p => p.rol === 'CONDUCTOR').length;
+  const asistentes = personas.filter(p => p.rol === 'ASISTENTE').length;
 
   return (
     <>
@@ -466,15 +427,15 @@ export default function Conductores() {
         <div className="kpi-card">
           <span className="kpi-icon-wrap ok"><CheckCircle2 size={18} /></span>
           <div className="kpi-body">
-            <div className="kpi-value">{loading || error ? '—' : disponibles}</div>
-            <div className="kpi-label">Disponibles hoy</div>
+            <div className="kpi-value">{loading || error ? '—' : conduccion}</div>
+            <div className="kpi-label">Conductores</div>
           </div>
         </div>
         <div className="kpi-card">
-          <span className="kpi-icon-wrap warn"><AlertTriangle size={18} /></span>
+          <span className="kpi-icon-wrap info"><Users size={18} /></span>
           <div className="kpi-body">
-            <div className="kpi-value">{loading || error ? '—' : enRiesgo}</div>
-            <div className="kpi-label">Fatiga / bloqueados</div>
+            <div className="kpi-value">{loading || error ? '—' : asistentes}</div>
+            <div className="kpi-label">Asistentes</div>
           </div>
         </div>
       </div>
@@ -532,15 +493,12 @@ export default function Conductores() {
                     <th>Conductor</th>
                     <th>RUT</th>
                     <th>Rol / tipo</th>
-                    <th>Horas hoy</th>
-                    <th>Estado</th>
                     <th>Posturas</th>
                     <th>Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {personasFiltradas.map(persona => {
-                    const sInfo = semaforoInfo(persona.semaforo);
                     const nPosturas = posturas.filter(p =>
                       p.tripulacion.some(t => t.persona.id === persona.id)
                     ).length;
@@ -568,12 +526,6 @@ export default function Conductores() {
                         <td data-label="Rol / tipo">
                           <div className="fw-500">{persona.rol}</div>
                           <div className="fs-12 text-muted">{persona.tipo}</div>
-                        </td>
-                        <td data-label="Horas hoy">
-                          <span className="fw-600">{parseFloat(persona.horas_hoy)}h</span>
-                        </td>
-                        <td data-label="Estado">
-                          <span className={`badge ${sInfo.cls}`}>{sInfo.icon} {sInfo.text}</span>
                         </td>
                         <td data-label="Posturas">
                           <span className={`badge ${nPosturas > 0 ? 'accent' : 'neutral'}`}>

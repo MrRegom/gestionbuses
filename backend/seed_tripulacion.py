@@ -20,48 +20,38 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgo_project.settings')
 django.setup()
 
 from operaciones.models import Persona  # noqa: E402
-# El criterio del semáforo se importa en vez de copiarse: cuando aquí
-# había una copia, cambiar el límite en el servicio dejaba la semilla
-# marcando en verde a gente que ya estaba al tope.
-from operaciones.services import semaforo_por_horas  # noqa: E402
 
 
-# (rut, nombre, rol, tipo, horas_hoy)
-# Las horas están puestas contra el tope real de 5 h continuas:
-# Cristián con 4 h queda en amarillo y sirve para ver el aviso.
+# (rut, nombre, rol, tipo)
 TRIPULACION = [
     # ── Conductores ──
-    ('12.345.678-9', 'Victor Manuel Veliz Suares', 'CONDUCTOR', 'TITULAR', 3),
-    ('9.876.543-2',  'Reinaldo Gomez Suares',      'CONDUCTOR', 'RELEVO',  2),
-    ('13.456.789-0', 'Patricio Rolla Muñoz',       'CONDUCTOR', 'TITULAR', 0),
-    ('14.567.890-1', 'Joao Dos Santos Lima',       'CONDUCTOR', 'TITULAR', 0),
-    ('15.678.901-2', 'Cristián Fuentes Aravena',   'CONDUCTOR', 'TITULAR', 4),
-    ('16.789.012-3', 'Mauricio Soto Bravo',        'CONDUCTOR', 'RELEVO',  0),
-    ('17.890.123-4', 'Jorge Palma Riquelme',       'CONDUCTOR', 'TITULAR', 0),
-    ('18.901.234-5', 'Nelson Cárcamo Vidal',       'CONDUCTOR', 'RELEVO',  0),
+    ('12.345.678-9', 'Victor Manuel Veliz Suares', 'CONDUCTOR', 'TITULAR'),
+    ('9.876.543-2',  'Reinaldo Gomez Suares',      'CONDUCTOR', 'RELEVO'),
+    ('13.456.789-0', 'Patricio Rolla Muñoz',       'CONDUCTOR', 'TITULAR'),
+    ('14.567.890-1', 'Joao Dos Santos Lima',       'CONDUCTOR', 'TITULAR'),
+    ('15.678.901-2', 'Cristián Fuentes Aravena',   'CONDUCTOR', 'TITULAR'),
+    ('16.789.012-3', 'Mauricio Soto Bravo',        'CONDUCTOR', 'RELEVO'),
+    ('17.890.123-4', 'Jorge Palma Riquelme',       'CONDUCTOR', 'TITULAR'),
+    ('18.901.234-5', 'Nelson Cárcamo Vidal',       'CONDUCTOR', 'RELEVO'),
 
     # ── Asistentes ──
-    ('19.012.345-6', 'Daniela Pérez Sandoval',     'ASISTENTE', 'TITULAR', 0),
-    ('20.123.456-7', 'Camila Órdenes Fuentes',     'ASISTENTE', 'TITULAR', 0),
-    ('21.234.567-8', 'Ignacio Bustos Leiva',       'ASISTENTE', 'TITULAR', 0),
-    ('22.345.678-9', 'Fernanda Cortés Naranjo',    'ASISTENTE', 'RELEVO',  0),
+    ('19.012.345-6', 'Daniela Pérez Sandoval',     'ASISTENTE', 'TITULAR'),
+    ('20.123.456-7', 'Camila Órdenes Fuentes',     'ASISTENTE', 'TITULAR'),
+    ('21.234.567-8', 'Ignacio Bustos Leiva',       'ASISTENTE', 'TITULAR'),
+    ('22.345.678-9', 'Fernanda Cortés Naranjo',    'ASISTENTE', 'RELEVO'),
 ]
 
 
 def run():
     conductores = asistentes = 0
 
-    for rut, nombre, rol, tipo, horas in TRIPULACION:
-        semaforo, razon = semaforo_por_horas(horas)
+    for rut, nombre, rol, tipo in TRIPULACION:
         persona, creada = Persona.objects.update_or_create(
             rut=rut,
             defaults={
                 'nombre': nombre,
                 'rol': rol,
                 'tipo': tipo,
-                'horas_hoy': horas,
-                'semaforo': semaforo,
-                'razon_bloqueo': razon,
             },
         )
         if rol == 'CONDUCTOR':

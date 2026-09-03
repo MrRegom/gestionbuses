@@ -90,6 +90,5 @@ class ParametrosSerializer(serializers.ModelSerializer):
         model = Parametros
         fields = [
             'conductores_por_servicio', 'asistentes_por_servicio',
-            'horas_conduccion_max', 'horas_conduccion_aviso',
             'actualizado_en', 'actualizado_por_nombre',
         ]

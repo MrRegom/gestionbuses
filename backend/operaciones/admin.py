@@ -14,9 +14,8 @@ from .models import (
 
 @admin.register(Persona)
 class PersonaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'rut', 'rol', 'tipo', 'horas_hoy', 'semaforo',
-                    'usuario')
-    list_filter = ('rol', 'tipo', 'semaforo')
+    list_display = ('nombre', 'rut', 'rol', 'tipo', 'usuario')
+    list_filter = ('rol', 'tipo')
     search_fields = ('nombre', 'rut')
     ordering = ('nombre',)
 
@@ -60,11 +59,9 @@ class ParametrosAdmin(admin.ModelAdmin):
     """Se edita desde Configuración; aquí solo se consulta.
 
     Dejarlo escribible por dos caminos invita a que uno de los dos se
-    salte la validación —el aviso menor que el máximo, por ejemplo— y a
-    que los semáforos queden sin recalcular.
+    salte las validaciones del servicio.
     """
     list_display = ('conductores_por_servicio', 'asistentes_por_servicio',
-                    'horas_conduccion_max', 'horas_conduccion_aviso',
                     'actualizado_en', 'actualizado_por')
 
     def has_add_permission(self, request):

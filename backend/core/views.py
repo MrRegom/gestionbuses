@@ -18,11 +18,7 @@ from .services import NotificacionService
 def _reglas():
     """Las reglas vigentes, tal como las dejó Operaciones."""
     p = Parametros.actual()
-    return {
-        'horas_conduccion_max': float(p.horas_conduccion_max),
-        'horas_conduccion_aviso': float(p.horas_conduccion_aviso),
-        'dotacion_requerida': p.dotacion,
-    }
+    return {'dotacion_requerida': p.dotacion}
 
 
 def _sesion(persona):

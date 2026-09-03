@@ -31,7 +31,6 @@ from mantencion.models import (  # noqa: E402
 from operaciones.models import (  # noqa: E402
     AsignacionTripulacion, Corrida, Persona, Postura,
 )
-from operaciones.services import semaforo_por_horas  # noqa: E402
 
 
 # El orden importa: primero lo que apunta a otras cosas. Aunque las
@@ -83,10 +82,7 @@ def limpiar():
         estado=Bus.Estado.DISPONIBLE, pozo=None, proxima_postura=None)
     print(f'\n  {buses:5}  buses vuelven a DISPONIBLE')
 
-    verde, _ = semaforo_por_horas(0)
-    gente = Persona.objects.update(
-        horas_hoy=0, semaforo=verde, razon_bloqueo=None)
-    print(f'  {gente:5}  personas con el contador de horas en cero')
+
 
 
 if __name__ == '__main__':

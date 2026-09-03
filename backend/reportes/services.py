@@ -19,7 +19,7 @@ from django.utils import timezone
 
 from core.permissions import TALLER, TRIPULACION
 from flota.models import Bus
-from operaciones.models import Corrida, Persona, Postura, horas_conduccion
+from operaciones.models import Corrida, Postura
 from mantencion.models import (
     Checklist, Incidente, OrdenTrabajo, RespuestaChecklist,
 )
@@ -103,13 +103,6 @@ def _postura_base():
 # que es lo único que no puede esperar; el resto se resume en un
 # contador y se revisa en su propia pantalla.
 ALERTAS_VISIBLES = 6
-
-# El color del semáforo de fatiga, traducido al del tablero.
-TONO_SEMAFORO = {
-    Persona.Semaforo.VERDE: 'ok',
-    Persona.Semaforo.AMARILLO: 'warn',
-    Persona.Semaforo.ROJO: 'danger',
-}
 
 
 class DashboardService:
@@ -211,16 +204,6 @@ def _alertas_operaciones(posturas_incompletas):
             'ruta': '/planificacion',
         })
 
-    for persona in Persona.objects.filter(semaforo=Persona.Semaforo.ROJO):
-        alertas.append({
-            'nivel': 'warn',
-            'titulo': f'{persona.nombre} no puede salir',
-            'detalle': persona.razon_bloqueo or 'Bloqueado por control de fatiga.',
-            'momento': None,
-            'referencia': f'{persona.horas_hoy} h hoy',
-            'ruta': '/conductores',
-        })
-
     orden = {'danger': 0, 'warn': 1, 'info': 2}
     alertas.sort(key=lambda a: (orden.get(a['nivel'], 9),
                                 -(a['momento'].timestamp() if a['momento'] else 0)))
@@ -294,19 +277,10 @@ def _dashboard_tripulacion(persona):
         'persona': {
             'nombre': persona.nombre,
             'rol': persona.get_rol_display(),
-            'horas_hoy': persona.horas_hoy,
-            'semaforo': persona.semaforo,
-            'razon_bloqueo': persona.razon_bloqueo,
         },
         'kpis': [
             {'id': 'asignadas', 'label': 'Servicios asignados',
              'valor': len(proximas), 'tono': 'info'},
-            # Contra el tope, no suelto: "3" no dice nada; "3 de 5" le
-            # dice al conductor cuánto le queda antes del relevo.
-            {'id': 'horas', 'label': 'Horas al volante hoy',
-             'valor': persona.horas_hoy,
-             'total': f'{horas_conduccion()[0]:g} h',
-             'tono': TONO_SEMAFORO[persona.semaforo]},
             {'id': 'incidentes', 'label': 'Fallas que reporté',
              'valor': mis_incidentes, 'tono': 'warn'},
         ],

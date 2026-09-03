@@ -6,7 +6,7 @@ import { findNavItem, tituloDe } from '../config/navigation';
 import { hace, fechaLarga } from '../utils/formato';
 import {
   Bus, MapPin, AlertCircle, Wrench, ChevronRight, CheckCircle2,
-  ClipboardCheck, Clock, RefreshCw, Inbox, Activity, TimerReset,
+  ClipboardCheck, Clock, RefreshCw, Inbox, Activity,
   ShieldCheck, CircleDot,
 } from 'lucide-react';
 
@@ -16,7 +16,7 @@ const ICONOS = {
   servicios: MapPin, listas: CheckCircle2, disponibles: Bus, taller: Wrench,
   bandeja: Inbox, abiertas: ClipboardCheck, proceso: Activity,
   inmovilizados: AlertCircle,
-  asignadas: MapPin, horas: TimerReset, incidentes: AlertCircle,
+  asignadas: MapPin, incidentes: AlertCircle,
 };
 
 const ESTADO_ORDEN = {
@@ -267,26 +267,10 @@ function PanelTaller({ datos }) {
 
 /* ── Tripulación (celular) ─────────────────────────────── */
 function PanelTripulacion({ datos }) {
-  const { persona, checklist_pendiente: pendiente } = datos;
+  const { checklist_pendiente: pendiente } = datos;
 
   return (
     <div className="stack">
-      {persona.semaforo !== 'verde' && (
-        <div className={`notice ${persona.semaforo === 'rojo' ? 'danger' : 'warn'}`}>
-          <span className="notice-icon"><AlertCircle size={16} /></span>
-          <div className="notice-content">
-            <div className="notice-title">
-              {persona.semaforo === 'rojo'
-                ? 'Te toca el relevo'
-                : 'Cerca del máximo de conducción'}
-            </div>
-            <div className="notice-desc">
-              {persona.razon_bloqueo || `Llevas ${persona.horas_hoy} h al volante.`}
-            </div>
-          </div>
-        </div>
-      )}
-
       {pendiente && (
         <div className="notice info">
           <span className="notice-icon"><ClipboardCheck size={16} /></span>

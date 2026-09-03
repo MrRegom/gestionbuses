@@ -58,7 +58,7 @@ Para soportar el flujo anterior, el SGO requiere los siguientes perfiles con acc
 2. **Conductores / Asistentes:** Usan principalmente la vista móvil. Ven sus posturas asignadas ("Mi Ficha") y llenan el Checklist de incidentes/novedades del bus.
 3. **Jefe de Mecánicos:** Acceso al módulo de Mantenimiento. Recibe los checklists, asigna tareas a mecánicos y aprueba la liberación de máquinas.
 4. **Mecánicos:** Vista móvil o tablet para ver sus órdenes de trabajo asignadas en el pozo mecánico y marcarlas como completadas.
-5. **Sala de Monitoreo:** Acceso al Dashboard de solo lectura o alta prioridad para reaccionar ante alertas rojas (buses caídos, fatiga de conductores).
+5. **Sala de Monitoreo:** Acceso al Dashboard de solo lectura o alta prioridad para reaccionar ante alertas rojas (buses caídos, corridas activas, servicios sin dotación).
 
 *(El rol del antiguo "Digitador" desaparece o se transforma, ya que los datos nacen digitales).*
 
@@ -155,7 +155,9 @@ desarrollo que hoy están en `seed_usuarios.py`.
 El sistema se encuentra en fase de Prototipo Funcional de Alta Fidelidad Avanzado:
 - **UI/UX Corporativa:** Sistema de diseño propio (Fluent Design), completamente responsivo. El menú lateral en desktop se convierte en un menú hamburguesa en mobile; los modales se adaptan perfectamente a las pantallas táctiles.
 - **Módulo de Planificación:** Listado de posturas reales (Rutas del Sur).
-- **Módulo de Conductores:** Directorio con KPIs. Incluye una **Ficha de Conductor** en formato panel lateral deslizante (o bottom-sheet en móvil) que muestra las horas conducidas, estados de fatiga (Semáforo) y permite la **Asignación de Posturas** mediante interacción real con la base de datos a través de la API REST.
+- **Módulo de Conductores:** Directorio de todo el personal. La ficha, en panel lateral deslizante (bottom-sheet en móvil), muestra los datos de la persona y sus servicios, y permite **asignarla a una postura**: el sistema ofrece solo los servicios que puede tomar y explica por qué descarta los demás.
+
+> **Sobre el control de fatiga.** El sistema llegó a tener un contador de horas al volante con semáforo verde/amarillo/rojo. Se retiró: Operaciones decidió que los conductores no van a marcar en la aplicación cuándo toman y entregan el volante, y sin esa fuente el contador quedaba en cero para siempre, aparentando un control de seguridad que no existía. Lo que sí se hace cumplir es la dotación: el máximo de cinco horas continuas es la razón por la que cada servicio lleva dos conductores, y esa regla se valida en cada asignación.
 - **Base de Datos Local:** Modelos de Django consolidados y scripts de semilla actualizados a la realidad de PlussChile.
 
 ## 7. Próximos Pasos (Hoja de Ruta)
