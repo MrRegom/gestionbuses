@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from '../api';
+import axios, { EVENTO_SESION_CAIDA } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -12,6 +12,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [sesion, setSesion] = useState(null);   // null = sin sesión
   const [cargando, setCargando] = useState(true);
+  const [expirada, setExpirada] = useState(false);
 
   const comprobar = useCallback(async () => {
     try {
@@ -26,9 +27,23 @@ export function AuthProvider({ children }) {
 
   useEffect(() => { comprobar(); }, [comprobar]);
 
+  /* La sesión puede morir en el servidor mientras la app sigue abierta.
+     `api.js` lo detecta al recibir un 403 y avisa por aquí; sin esto
+     cada pantalla fallaba por su cuenta y el usuario veía la aplicación
+     rota en vez de una pantalla de login. */
+  useEffect(() => {
+    const caida = () => {
+      setSesion(null);
+      setExpirada(true);
+    };
+    window.addEventListener(EVENTO_SESION_CAIDA, caida);
+    return () => window.removeEventListener(EVENTO_SESION_CAIDA, caida);
+  }, []);
+
   const login = async (username, password) => {
     const { data } = await axios.post('/api/auth/login/', { username, password });
     setSesion(data);
+    setExpirada(false);
     return data;
   };
 
@@ -38,11 +53,12 @@ export function AuthProvider({ children }) {
     } finally {
       // Aunque el servidor falle, localmente se cierra la sesión.
       setSesion(null);
+      setExpirada(false);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ sesion, cargando, login, logout, recargar: comprobar }}>
+    <AuthContext.Provider value={{ sesion, cargando, expirada, login, logout, recargar: comprobar }}>
       {children}
     </AuthContext.Provider>
   );

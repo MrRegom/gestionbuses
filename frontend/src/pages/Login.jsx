@@ -3,7 +3,7 @@ import { LogIn, AlertCircle, Bus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, expirada } = useAuth();
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState(null);
   const [entrando, setEntrando] = useState(false);
@@ -33,6 +33,17 @@ export default function Login() {
         </div>
 
         <form onSubmit={enviar} className="flex flex-col gap-4">
+          {/* Sin este aviso, a quien se le cae la sesión le aparece el
+              login de la nada y parece que la app se reinició sola. */}
+          {expirada && !error && (
+            <div className="notice warn">
+              <AlertCircle size={16} className="notice-icon" />
+              <div className="notice-content">
+                Tu sesión se cerró. Vuelve a entrar para seguir.
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="notice danger">
               <AlertCircle size={16} className="notice-icon" />
