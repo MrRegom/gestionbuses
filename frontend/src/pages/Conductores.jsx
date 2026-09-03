@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../api';
 import DialogoForm, { mensajeError } from '../components/DialogoForm';
+import { useReglas } from '../context/AuthContext';
 import {
   Users, Plus, CheckCircle2, AlertTriangle, XCircle,
   Search, ArrowRight, MapPin, Clock, Bus as BusIcon,
@@ -16,7 +17,6 @@ const getInitials = n => n.split(' ').map(x => x[0]).join('').slice(0, 2).toUppe
 const AVATAR_TONES = ['var(--n-90)', 'var(--n-100)', 'var(--n-110)', 'var(--n-80)'];
 const avatarTone = id => AVATAR_TONES[id % AVATAR_TONES.length];
 
-const HORAS_MAX = 9;
 
 const semaforoInfo = semaforo => {
   switch (semaforo) {
@@ -61,9 +61,10 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
     setSaving(false);
   };
 
+  const { horas_conduccion_max: horasMax } = useReglas();
   const sInfo = semaforoInfo(persona.semaforo);
   const horas = parseFloat(persona.horas_hoy);
-  const pctHoras = Math.min(100, (horas / HORAS_MAX) * 100);
+  const pctHoras = Math.min(100, (horas / horasMax) * 100);
 
   return (
     <aside className="slide-panel open" aria-label={`Ficha de ${persona.nombre}`}>
@@ -108,9 +109,9 @@ function FichaPanel({ persona, posturas, onClose, onAsignar, onDesasignar }) {
                 <span className={`badge ${sInfo.cls}`}>{sInfo.icon} {sInfo.text}</span>
               </div>
               <div className="stat-box">
-                <div className="stat-box-label">Horas hoy</div>
+                <div className="stat-box-label">Horas al volante</div>
                 <div className="stat-box-value">
-                  {horas}h <span className="fs-12 fw-400 text-muted">/ {HORAS_MAX}h</span>
+                  {horas}h <span className="fs-12 fw-400 text-muted">/ {horasMax}h</span>
                 </div>
                 <div className="progress-track mt-2">
                   <div

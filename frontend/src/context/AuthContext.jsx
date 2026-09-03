@@ -53,3 +53,23 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth debe usarse dentro de <AuthProvider>');
   return ctx;
 }
+
+/* Respaldos por si el backend es anterior a que las reglas viajaran en
+   la sesión. No son la fuente de verdad: esa es `models.py`. */
+const REGLAS_POR_DEFECTO = {
+  horas_conduccion_max: 5,
+  horas_conduccion_aviso: 4,
+  dotacion_requerida: { CONDUCTOR: 2, ASISTENTE: 1 },
+};
+
+/**
+ * Reglas del negocio que manda el servidor.
+ *
+ * Antes cada pantalla llevaba su propia copia —Conductores tenía un
+ * `HORAS_MAX = 9`— y cuando Operaciones confirmó que el tope real son
+ * cinco horas continuas, la interfaz siguió midiendo contra nueve.
+ */
+export function useReglas() {
+  const { sesion } = useAuth();
+  return sesion?.reglas ?? REGLAS_POR_DEFECTO;
+}

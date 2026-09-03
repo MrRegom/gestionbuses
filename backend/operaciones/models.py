@@ -53,6 +53,19 @@ DOTACION_REQUERIDA = {
     'ASISTENTE': 1,
 }
 
+# Límite de conducción confirmado con Operaciones: cinco horas
+# continuas al volante como máximo.
+#
+# Es la razón mecánica de la dotación de arriba. Las rutas al sur duran
+# entre cinco y siete horas y media, o sea más que el límite, así que a
+# mitad de camino los dos conductores tienen que relevarse. No son dos
+# por comodidad: con uno solo el servicio no se puede hacer legalmente.
+#
+# El aviso se levanta antes del tope para que Operaciones alcance a
+# mover a alguien, no cuando ya es tarde.
+HORAS_CONDUCCION_MAX = 5.0
+HORAS_CONDUCCION_AVISO = 4.0
+
 
 class Ciudad(models.Model):
     nombre = models.CharField(max_length=100, unique=True)

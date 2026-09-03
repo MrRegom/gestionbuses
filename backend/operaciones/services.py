@@ -5,7 +5,34 @@ from django.db import transaction
 from .repositories import PersonaRepository
 from .models import (
     Persona, Postura, AsignacionTripulacion, Corrida, DOTACION_REQUERIDA,
+    HORAS_CONDUCCION_MAX, HORAS_CONDUCCION_AVISO,
 )
+
+def semaforo_por_horas(horas):
+    """Traduce horas al volante en color de semáforo y su motivo.
+
+    El tope son cinco horas continuas (Persona.HORAS_CONDUCCION_MAX).
+    Antes esto usaba 8 y 6, que fueron cifras inventadas mientras no
+    teníamos la regla; Operaciones confirmó que el máximo real es cinco.
+
+    Vive aquí y no dentro del servicio para que la semilla y cualquier
+    otro punto usen exactamente el mismo criterio.
+    """
+    horas = float(horas)
+
+    if horas >= HORAS_CONDUCCION_MAX:
+        return (Persona.Semaforo.ROJO,
+                f'Alcanzó el máximo de {HORAS_CONDUCCION_MAX:g} h continuas '
+                f'de conducción.')
+
+    if horas >= HORAS_CONDUCCION_AVISO:
+        restan = HORAS_CONDUCCION_MAX - horas
+        return (Persona.Semaforo.AMARILLO,
+                f'Le quedan {restan:g} h antes del máximo de '
+                f'{HORAS_CONDUCCION_MAX:g} h continuas.')
+
+    return Persona.Semaforo.VERDE, None
+
 
 class TripulacionService:
     @staticmethod
@@ -23,15 +50,7 @@ class TripulacionService:
             raise ValueError("Persona no encontrada")
         
         nuevas_horas = float(persona.horas_hoy) + horas_agregadas
-        estado_semaforo = Persona.Semaforo.VERDE
-        razon = None
-
-        if nuevas_horas >= 8:
-            estado_semaforo = Persona.Semaforo.ROJO
-            razon = 'Exceso de jornada diaria (>8h)'
-        elif nuevas_horas >= 6:
-            estado_semaforo = Persona.Semaforo.AMARILLO
-            razon = 'Precaución: Jornada acercándose al límite'
+        estado_semaforo, razon = semaforo_por_horas(nuevas_horas)
 
         return PersonaRepository.update_persona(persona, {
             'horas_hoy': nuevas_horas,

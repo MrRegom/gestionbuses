@@ -20,9 +20,15 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sgo_project.settings')
 django.setup()
 
 from operaciones.models import Persona  # noqa: E402
+# El criterio del semáforo se importa en vez de copiarse: cuando aquí
+# había una copia, cambiar el límite en el servicio dejaba la semilla
+# marcando en verde a gente que ya estaba al tope.
+from operaciones.services import semaforo_por_horas  # noqa: E402
 
 
 # (rut, nombre, rol, tipo, horas_hoy)
+# Las horas están puestas contra el tope real de 5 h continuas:
+# Cristián con 4 h queda en amarillo y sirve para ver el aviso.
 TRIPULACION = [
     # ── Conductores ──
     ('12.345.678-9', 'Victor Manuel Veliz Suares', 'CONDUCTOR', 'TITULAR', 3),
@@ -40,15 +46,6 @@ TRIPULACION = [
     ('21.234.567-8', 'Ignacio Bustos Leiva',       'ASISTENTE', 'TITULAR', 0),
     ('22.345.678-9', 'Fernanda Cortés Naranjo',    'ASISTENTE', 'RELEVO',  0),
 ]
-
-
-def semaforo_por_horas(horas):
-    """Mismo criterio que TripulacionService.registrar_horas."""
-    if horas >= 8:
-        return Persona.Semaforo.ROJO, 'Exceso de jornada diaria (>8h)'
-    if horas >= 6:
-        return Persona.Semaforo.AMARILLO, 'Precaución: Jornada acercándose al límite'
-    return Persona.Semaforo.VERDE, None
 
 
 def run():
